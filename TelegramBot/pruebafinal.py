@@ -16,9 +16,8 @@ from telegram.ext import (
 
 nest_asyncio.apply()
 
-TELEGRAM_GROUP_ID = "-1002545875124"
-
 # Claves API desde variables de entorno
+TELEGRAM_GROUP_ID = "-1002545875124"
 openai_api_key = os.getenv("OPENAI_API_KEY")
 telegram_bot_key = os.getenv("CURAIME_BOT_KEY")
 
@@ -40,9 +39,7 @@ messages_to_send = [system_content]
 avisos_pendientes = {}  # Clave: user_id, Valor: (descripción, ubicación)
 avisos_gestionados = []  # Lista de avisos ya aprobados o atendidos
 avisos_enviados = {}  # Para evitar spam de avisos por usuario
-
-# Diccionario para almacenar datos de usuarios verificados
-usuarios_verificados = {}
+usuarios_verificados = {} # almacenar datos de usuarios verificados
 
 ### FUNCIONES BOT IA-------------------------------------------------------------------
 
