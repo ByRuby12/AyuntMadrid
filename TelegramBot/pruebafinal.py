@@ -52,6 +52,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "✅ /verificar - Registrar tus datos personales para reportar avisos.\n"
             "✅ /aviso - Enviar un aviso de emergencia.\n"
             "✅ /pendientes - Ver los avisos pendientes y los gestionados.\n"
+            "✅ /ayuda - Informa de lo que se deberia de hacer en X caso.\n"
             "✅ /contacto - Ver los números de emergencia en España.\n"
             "✅ /help - Información sobre cómo usar el bot.\n\n"
             "⚠️ *Si estás en peligro inmediato, llama al 112.*"
@@ -63,7 +64,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Ha ocurrido un error al mostrar el menú.")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Explica detalladamente cómo usar el bot paso a paso, incluyendo la verificación obligatoria."""
+    """Explica detalladamente cómo usar el bot paso a paso, incluyendo la verificación obligatoria y el envío de fotos/videos."""
     help_text = (
         "⚠️ *Bienvenido al Bot de Avisos de Emergencia* ⚠️\n\n"
         "Este bot está diseñado para proporcionar información en tiempo real sobre emergencias "
@@ -73,16 +74,19 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "1️⃣ Usa `/verificar` para registrar tus datos antes de enviar un aviso.\n"
         "2️⃣ Usa `/aviso [descripción]` para reportar una emergencia.\n"
         "3️⃣ Comparte tu ubicación cuando se te solicite.\n"
-        "4️⃣ Usa `/pendientes` para ver los avisos en espera y los que han sido gestionados.\n"
-        "5️⃣ Consulta los números de emergencia con `/contacto`.\n"
-        "6️⃣ Usa `/help` si tienes dudas.\n\n"
+        "4️⃣ Envía una *foto o video* del incidente después de compartir tu ubicación.\n"
+        "5️⃣ Usa `/pendientes` para ver los avisos en espera y los que han sido gestionados.\n"
+        "6️⃣ Consulta los números de emergencia con `/contacto`.\n"
+        "7️⃣ Usa `/help` si tienes dudas.\n\n"
         "📜 *Comandos Disponibles:*\n"
         "✅ /menu - Muestra el menú de opciones.\n"
         "✅ /verificar - Registra tus datos personales.\n"
         "✅ /aviso - Reporta una emergencia con ubicación.\n"
         "✅ /pendientes - Lista de avisos pendientes y aprobados.\n"
+        "✅ /ayuda - Informa de lo que se deberia de hacer en X caso.\n"
         "✅ /contacto - Muestra los números de emergencia.\n"
         "✅ /help - Explicación sobre cómo usar el bot.\n\n"
+
         "📧 *Soporte técnico:* contacto@empresa.com\n"
         "📞 *Teléfono de atención:* +34 600 123 456"
     )
@@ -377,6 +381,8 @@ async def pendientes(update: Update, context: ContextTypes.DEFAULT_TYPE):
         mensaje += "ℹ️ No hay avisos gestionados aún.\n"
 
     await update.message.reply_text(mensaje, parse_mode="Markdown")
+
+# async def ayuda_ia (CONTESTACION DE LA IA DE LO QUE DEBERIA DE HACER EN X CASO)
 
 async def contacto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Muestra los números de emergencia en España."""
