@@ -56,8 +56,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "✅ /aviso - Enviar un aviso de emergencia.\n"
             "✅ /pendientes - Ver los avisos pendientes y los gestionados.\n"
             "✅ /contacto - Ver los números de emergencia en España.\n"
-            "✅ /help - Información sobre cómo usar el bot.\n"
-            "✅ /stop - Detener el bot.\n\n"
+            "✅ /help - Información sobre cómo usar el bot.\n\n"
             "⚠️ *Si estás en peligro inmediato, llama al 112.*"
         )
 
@@ -115,6 +114,11 @@ async def verificar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 🔹 Marca al usuario como pendiente de verificación
     context.user_data[user_id] = {"verificacion_pendiente": True}
+
+    # 🔹 Muestra los datos en la consola
+    print("―――――――――――――――――――――――――――――――――――――")
+    print("📢 NUEVO USUARIO REGISTRADO:")
+    print(f"👤 Usuario ID: {user_id}")
 
 async def recibir_datos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Recibe y valida los datos personales enviados por el usuario."""
@@ -221,41 +225,107 @@ async def aviso(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Ha ocurrido un error al procesar tu aviso.")
 
 async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Recibe la ubicación del usuario y la asocia al aviso previo, luego lo envía al grupo."""
+    """Recibe la ubicación del usuario y la asocia al aviso previo, luego pide una foto."""
     try:
         user_id = update.message.from_user.id
         location = update.message.location
 
-        # Verificar si la ubicación se ha recibido correctamente
         if not location:
             await update.message.reply_text("❌ No se ha recibido la ubicación. Asegúrate de enviarla correctamente.")
             return
 
         latitude, longitude = location.latitude, location.longitude
 
+        if "avisos_pendientes" not in context.bot_data:
+            context.bot_data["avisos_pendientes"] = []
+
         # Buscar el aviso pendiente del usuario
+        aviso_encontrado = None
         for aviso in context.bot_data["avisos_pendientes"]:
             if aviso["user_id"] == user_id and aviso["ubicacion"] is None:
                 aviso["ubicacion"] = (latitude, longitude)
+                aviso["foto"] = None  # Agregar campo para la foto
+                aviso_encontrado = aviso
                 break
-        else:
+
+        if not aviso_encontrado:
             await update.message.reply_text(
                 "⚠️ No tienes un aviso pendiente. Usa /aviso antes de enviar tu ubicación.",
                 parse_mode="Markdown"
             )
             return
+        print("―――――――――――――――――――――――――――――――――――――")
+        print(f"✅ Ubicación guardada para el aviso: {aviso_encontrado}")  # Depuración
+        print("―――――――――――――――――――――――――――――――――――――")
 
-        # Obtener la fecha y hora actual
-        fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # Pedir una foto opcional
+        await update.message.reply_text(
+            "📷 *Si es posible, envía una foto del incidente.*\n"
+            "Si no tienes una foto, simplemente ignora este mensaje.",
+            parse_mode="Markdown"
+        )
+
+    except Exception as e:
+        print(f"❌ Error en recibir_ubicacion: {e}")
+        await update.message.reply_text("❌ Ha ocurrido un error al procesar la ubicación.")
+
+async def recibir_foto(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Recibe una foto del usuario y la asocia al aviso pendiente, luego la envía al grupo."""
+    try:
+        user_id = update.message.from_user.id
+
+        if not update.message.photo:
+            await update.message.reply_text("⚠️ No se ha recibido una foto válida.")
+            return
+
+        photo = update.message.photo[-1]  # La última imagen suele ser la de mejor calidad
+        file_id = photo.file_id
+
+        print(f"📷 Foto recibida de {user_id}, file_id: {file_id}")  # Depuración
+        print("―――――――――――――――――――――――――――――――――――――")
+
+        if "avisos_pendientes" not in context.bot_data:
+            context.bot_data["avisos_pendientes"] = []
+
+        print(f"📋 Lista de avisos pendientes antes de buscar: {context.bot_data['avisos_pendientes']}")  # Depuración
+        print("―――――――――――――――――――――――――――――――――――――")
+
+        aviso_encontrado = None
+        for aviso in context.bot_data["avisos_pendientes"]:
+            if aviso["user_id"] == user_id and aviso.get("foto") is None:
+                aviso["foto"] = file_id
+                aviso_encontrado = aviso
+                break
+
+        if not aviso_encontrado:
+            await update.message.reply_text("⚠️ No tienes un aviso pendiente que requiera una foto.")
+            return
+
+        print(f"✅ Foto guardada en el aviso: {aviso_encontrado}")  # Depuración
+        print("―――――――――――――――――――――――――――――――――――――")
 
         # Obtener los datos del usuario
         datos_usuario = context.user_data.get(user_id, {})
         nombre = datos_usuario.get("nombre", "Desconocido")
-        telefono = datos_usuario.get("telefono", "No proporcionado")
-        dni = datos_usuario.get("dni", "No proporcionado")
-        user_aviso = aviso["descripcion"]  # Obtener la descripción del aviso
+        telefono = datos_usuario.get("telefono", "No registrado")
+        dni = datos_usuario.get("dni", "No registrado")
 
-        # Formatear el mensaje para el grupo
+        # Obtener los datos del aviso
+        user_aviso = aviso_encontrado["descripcion"]
+        latitude, longitude = aviso_encontrado["ubicacion"]
+        fecha_actual = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        # 📌 Imprimir los datos del usuario en la consola
+
+        print("📢 NUEVO AVISO RECIBIDO:")
+        print(f"👤 Nombre      : {nombre}")
+        print(f"📅 Fecha y Hora: {fecha_actual}")
+        print(f"📞 Teléfono    : {telefono}")
+        print(f"🆔 DNI         : {dni}")
+        print(f"📌 Aviso       : {user_aviso}")
+        print(f"📍 Ubicación   : {latitude}, {longitude}")
+        print("―――――――――――――――――――――――――――――――――――――")
+
         mensaje_grupo = (
             f"🚨 *NUEVO INCIDENTE REPORTADO*\n\n"
             f"📌 *Descripción:* {user_aviso}\n"
@@ -265,33 +335,20 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🔔 ¡Atención a este incidente!"
         )
 
-        # Enviar el aviso al grupo
-        await context.bot.send_message(chat_id=TELEGRAM_GROUP_ID, text=mensaje_grupo, parse_mode="Markdown")
-
-        # Confirmar al usuario que el aviso fue enviado
-        await update.message.reply_text(
-            "✅ *Aviso registrado y enviado al grupo de incidentes.*\n"
-            "Gracias por reportarlo.",
+        # Enviar la foto al grupo de Telegram
+        await context.bot.send_photo(
+            chat_id=TELEGRAM_GROUP_ID,
+            photo=file_id,
+            caption=mensaje_grupo,
             parse_mode="Markdown"
         )
 
-        # Registrar el cooldown
+        await update.message.reply_text("✅ *Aviso registrado y enviado con foto.*", parse_mode="Markdown")
         context.user_data[user_id]["ultimo_aviso"] = time.time()
 
-        # context.bot_data["avisos_gestionados"].append(aviso)
-
-        print("―――――――――――――――――――――――――――――――――――――")
-        print("📢 NUEVO AVISO RECIBIDO:")
-        print(f"👤 Nombre: {nombre}")
-        print(f"📅 Fecha y Hora: {fecha_actual}")
-        print(f"📞 Teléfono: {telefono}")
-        print(f"🆔 DNI: {dni}")
-        print(f"📌 Aviso: {user_aviso}")
-        print(f"📍 Ubicación: {latitude}, {longitude}")
-
     except Exception as e:
-        print(f"❌ Error en recibir_ubicacion: {e}")
-        await update.message.reply_text("❌ Ha ocurrido un error al procesar la ubicación.")
+        print(f"❌ Error en recibir_foto: {e}")
+        await update.message.reply_text("❌ Ha ocurrido un error al procesar la imagen.")
 
 async def pendientes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Muestra los avisos pendientes y los ya gestionados."""
@@ -322,24 +379,6 @@ async def pendientes(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(mensaje, parse_mode="Markdown")
 
-async def unknown_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Responde a mensajes no relacionados con emergencias."""
-    await update.message.reply_text(
-        "⚠️ *Este bot solo está diseñado para reportar emergencias.*\n\n"
-        "Usa `/aviso` para reportar un incidente real o `/menu` para ver las opciones disponibles.",
-        parse_mode="Markdown"
-    )
-
-async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Detiene la ejecución del bot."""
-    try:
-        await update.message.reply_text("⛔ Apagando el bot...")
-        loop = asyncio.get_event_loop()
-        loop.stop()
-    except Exception as e:
-        print(f"Error en /stop: {e}")
-        await update.message.reply_text("❌ Error al intentar detener el bot.")
-
 async def contacto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Muestra los números de emergencia en España."""
     emergency_numbers = (
@@ -356,7 +395,7 @@ async def contacto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(emergency_numbers, parse_mode="Markdown")
 
-### ARRANQUE DEL BOT
+### ARRANQUE DEL BOT-------------------------------------------------------------------
 if __name__ == '__main__':
     application = ApplicationBuilder().token(telegram_bot_key).build()
     
@@ -366,9 +405,8 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("aviso", aviso))
     application.add_handler(MessageHandler(filters.LOCATION, recibir_ubicacion))
     application.add_handler(CommandHandler("contacto", contacto))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, unknown_message))    
-    application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, unknown_message)) ##sd
-    application.add_handler(CommandHandler("stop", stop))
+    # application.add_handler(CommandHandler("stop", stop))
+    application.add_handler(MessageHandler(filters.PHOTO, recibir_foto))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("pendientes", pendientes))
 
