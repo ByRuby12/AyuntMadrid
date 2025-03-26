@@ -260,8 +260,8 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Pedir una foto opcional
         await update.message.reply_text(
-            "📷 *Si es posible, envía una foto del incidente.*\n"
-            "Si no tienes una foto, simplemente ignora este mensaje.",
+            "📷📹 *Si es posible, envía una foto o un video del incidente.*\n"
+            "Es para poder verificar que el Aviso sea Correcto",
             parse_mode="Markdown"
         )
 
@@ -269,40 +269,44 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print(f"❌ Error en recibir_ubicacion: {e}")
         await update.message.reply_text("❌ Ha ocurrido un error al procesar la ubicación.")
 
-async def recibir_foto(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Recibe una foto del usuario y la asocia al aviso pendiente, luego la envía al grupo."""
+async def recibir_contenido(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Recibe una foto o un video del usuario y lo asocia al aviso pendiente, luego lo envía al grupo."""
     try:
         user_id = update.message.from_user.id
 
-        if not update.message.photo:
-            await update.message.reply_text("⚠️ No se ha recibido una foto válida.")
+        # Verificar si el mensaje contiene una foto o un video
+        file_id = None
+        file_type = None
+
+        if update.message.photo:
+            file_id = update.message.photo[-1].file_id  # Última imagen = mejor calidad
+            file_type = "foto"
+        elif update.message.video:
+            file_id = update.message.video.file_id
+            file_type = "video"
+        else:
+            await update.message.reply_text("⚠️ No se ha recibido una foto o video válido.")
             return
 
-        photo = update.message.photo[-1]  # La última imagen suele ser la de mejor calidad
-        file_id = photo.file_id
-
-        print(f"📷 Foto recibida de {user_id}, file_id: {file_id}")  # Depuración
-        print("―――――――――――――――――――――――――――――――――――――")
+        print(f"📷📹 Archivo recibido de {user_id}, tipo: {file_type}, file_id: {file_id}")  # Depuración
 
         if "avisos_pendientes" not in context.bot_data:
             context.bot_data["avisos_pendientes"] = []
 
-        print(f"📋 Lista de avisos pendientes antes de buscar: {context.bot_data['avisos_pendientes']}")  # Depuración
-        print("―――――――――――――――――――――――――――――――――――――")
-
+        # Buscar el aviso pendiente del usuario
         aviso_encontrado = None
         for aviso in context.bot_data["avisos_pendientes"]:
-            if aviso["user_id"] == user_id and aviso.get("foto") is None:
-                aviso["foto"] = file_id
+            if aviso["user_id"] == user_id and aviso.get("archivo") is None:
+                aviso["archivo"] = file_id
+                aviso["tipo_archivo"] = file_type
                 aviso_encontrado = aviso
                 break
 
         if not aviso_encontrado:
-            await update.message.reply_text("⚠️ No tienes un aviso pendiente que requiera una foto.")
+            await update.message.reply_text("⚠️ No tienes un aviso pendiente que requiera una foto o video.")
             return
 
-        print(f"✅ Foto guardada en el aviso: {aviso_encontrado}")  # Depuración
-        print("―――――――――――――――――――――――――――――――――――――")
+        print(f"✅ {file_type.capitalize()} guardado en el aviso: {aviso_encontrado}")  # Depuración
 
         # Obtener los datos del usuario
         datos_usuario = context.user_data.get(user_id, {})
@@ -313,42 +317,40 @@ async def recibir_foto(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Obtener los datos del aviso
         user_aviso = aviso_encontrado["descripcion"]
         latitude, longitude = aviso_encontrado["ubicacion"]
-        fecha_actual = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-        # 📌 Imprimir los datos del usuario en la consola
-
-        print("📢 NUEVO AVISO RECIBIDO:")
-        print(f"👤 Nombre      : {nombre}")
-        print(f"📅 Fecha y Hora: {fecha_actual}")
-        print(f"📞 Teléfono    : {telefono}")
-        print(f"🆔 DNI         : {dni}")
-        print(f"📌 Aviso       : {user_aviso}")
-        print(f"📍 Ubicación   : {latitude}, {longitude}")
-        print("―――――――――――――――――――――――――――――――――――――")
 
         mensaje_grupo = (
             f"🚨 *NUEVO INCIDENTE REPORTADO*\n\n"
             f"📌 *Descripción:* {user_aviso}\n"
-            f"📅 *Fecha y Hora:* {fecha_actual}\n"
+            f"📅 *Fecha y Hora:* {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
             f"📍 *Ubicación:* [{latitude}, {longitude}](https://www.google.com/maps?q={latitude},{longitude})\n"
             f"👤 *Reportado por:* {nombre}\n"
+            # f"📞 *Teléfono:* {telefono}\n"
+            # f"🆔 *DNI:* {dni}\n"
             f"🔔 ¡Atención a este incidente!"
         )
 
-        # Enviar la foto al grupo de Telegram
-        await context.bot.send_photo(
-            chat_id=TELEGRAM_GROUP_ID,
-            photo=file_id,
-            caption=mensaje_grupo,
-            parse_mode="Markdown"
-        )
+        # Enviar el archivo al grupo de Telegram
+        if file_type == "foto":
+            await context.bot.send_photo(
+                chat_id=TELEGRAM_GROUP_ID,
+                photo=file_id,
+                caption=mensaje_grupo,
+                parse_mode="Markdown"
+            )
+        elif file_type == "video":
+            await context.bot.send_video(
+                chat_id=TELEGRAM_GROUP_ID,
+                video=file_id,
+                caption=mensaje_grupo,
+                parse_mode="Markdown"
+            )
 
-        await update.message.reply_text("✅ *Aviso registrado y enviado con foto.*", parse_mode="Markdown")
+        await update.message.reply_text(f"✅ *Aviso registrado y enviado con {file_type}.*", parse_mode="Markdown")
         context.user_data[user_id]["ultimo_aviso"] = time.time()
 
     except Exception as e:
-        print(f"❌ Error en recibir_foto: {e}")
-        await update.message.reply_text("❌ Ha ocurrido un error al procesar la imagen.")
+        print(f"❌ Error en recibir_contenido: {e}")
+        await update.message.reply_text("❌ Ha ocurrido un error al procesar el archivo.")
 
 async def pendientes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Muestra los avisos pendientes y los ya gestionados."""
@@ -406,7 +408,8 @@ if __name__ == '__main__':
     application.add_handler(MessageHandler(filters.LOCATION, recibir_ubicacion))
     application.add_handler(CommandHandler("contacto", contacto))
     # application.add_handler(CommandHandler("stop", stop))
-    application.add_handler(MessageHandler(filters.PHOTO, recibir_foto))
+    # application.add_handler(MessageHandler(filters.PHOTO, recibir_contenido))
+    application.add_handler(MessageHandler(filters.PHOTO | filters.VIDEO, recibir_contenido))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("pendientes", pendientes))
 
