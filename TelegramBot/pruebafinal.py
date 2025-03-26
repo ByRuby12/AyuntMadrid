@@ -2,6 +2,7 @@ import nest_asyncio
 import os
 import asyncio
 import re
+import time
 from datetime import datetime
 from openai import OpenAI
 from telegram import (
@@ -152,34 +153,61 @@ async def recibir_datos(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("✅ Datos verificados. Ahora puedes enviar avisos con /aviso.")
 
+async def iniciar_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if "avisos_pendientes" not in context.bot_data:
+        context.bot_data["avisos_pendientes"] = []
+    if "avisos_gestionados" not in context.bot_data:
+        context.bot_data["avisos_gestionados"] = []
+
 async def aviso(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Procesa cualquier aviso sin evaluar su gravedad."""
+    """Procesa cualquier aviso y aplica un cooldown de 2 minutos."""
     try:
         user_id = update.message.from_user.id
+        ahora = time.time()
 
-        # 🔹 Verifica si el usuario está verificado
-        if user_id not in context.user_data or "datos_verificados" not in context.user_data[user_id]:
+        # Asegurar que el usuario tiene una entrada en context.user_data
+        if user_id not in context.user_data:
+            context.user_data[user_id] = {}
+
+        # Verificar si el usuario ya está verificado
+        if "datos_verificados" not in context.user_data[user_id]:
             await update.message.reply_text(
                 "⚠️ *Debes verificar tus datos antes de enviar un aviso.*\nUsa `/verificar`.",
                 parse_mode="Markdown"
             )
             return
 
-        # 🔹 Extraer el texto del aviso correctamente
-        user_aviso = update.message.text.replace("/aviso", "").strip()
-
-        if not user_aviso:
+        # Comprobar si el usuario está en cooldown
+        if "ultimo_aviso" in context.user_data[user_id] and (ahora - context.user_data[user_id]["ultimo_aviso"]) < 120:
+            tiempo_restante = int(120 - (ahora - context.user_data[user_id]["ultimo_aviso"]))
             await update.message.reply_text(
-                "⚠️ *Formato incorrecto.*\nUsa:\n`/aviso [descripción detallada del incidente]`",
+                f"⏳ *Debes esperar {tiempo_restante} segundos antes de enviar otro aviso.*",
                 parse_mode="Markdown"
             )
             return
 
-        # 🔹 Guarda el aviso sin importar su contenido
-        avisos_pendientes[user_id] = (user_aviso, "Ubicación pendiente")
+        # Extraer el texto del aviso correctamente
+        user_aviso = update.message.text.replace("/aviso", "").strip()
+
+        if not user_aviso:
+            await update.message.reply_text(
+                "⚠️ *Formato incorrecto.*\nUsa:\n`/aviso [descripción del incidente]`",
+                parse_mode="Markdown"
+            )
+            return
+
+        # Guardar el aviso en avisos_pendientes en context.bot_data
+        if "avisos_pendientes" not in context.bot_data:
+            context.bot_data["avisos_pendientes"] = []
+
+        context.bot_data["avisos_pendientes"].append({
+            "user_id": user_id,
+            "descripcion": user_aviso,
+            "ubicacion": None
+        })
 
         await update.message.reply_text(
-            "✅ *Aviso registrado correctamente.*\nSi es necesario, envía tu ubicación.",
+            "📌 *Envía tu ubicación para completar el aviso.*",
             reply_markup=ReplyKeyboardMarkup(
                 [[KeyboardButton("📍 Enviar Ubicación", request_location=True)]],
                 one_time_keyboard=True,
@@ -192,61 +220,42 @@ async def aviso(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print(f"❌ Error en /aviso: {e}")
         await update.message.reply_text("❌ Ha ocurrido un error al procesar tu aviso.")
 
-async def pendientes(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Muestra los avisos pendientes y los ya gestionados."""
-    mensaje = "📋 *Estado de los avisos de emergencia:*\n\n"
-
-    # 🔹 Mostrar avisos pendientes
-    if avisos_pendientes:
-        mensaje += "⏳ *Avisos pendientes:*\n"
-        for user_id, (descripcion, ubicacion) in avisos_pendientes.items():
-            mensaje += f"🔹 {descripcion}\n📍 Ubicación: {ubicacion}\n\n"
-    else:
-        mensaje += "✅ No hay avisos pendientes.\n\n"
-
-    # 🔹 Mostrar avisos gestionados
-    if avisos_gestionados:
-        mensaje += "✅ *Avisos gestionados:*\n"
-        for aviso in avisos_gestionados:
-            mensaje += f"✔️ {aviso}\n\n"
-    else:
-        mensaje += "ℹ️ No hay avisos gestionados aún.\n"
-
-    await update.message.reply_text(mensaje, parse_mode="Markdown")
-
 async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Recibe la ubicación del usuario y la asocia al aviso previo, luego lo envía al grupo."""
     try:
         user_id = update.message.from_user.id
         location = update.message.location
 
-        # 🔹 Depurar si la ubicación se recibe correctamente
-        if location is None:
+        # Verificar si la ubicación se ha recibido correctamente
+        if not location:
             await update.message.reply_text("❌ No se ha recibido la ubicación. Asegúrate de enviarla correctamente.")
             return
 
         latitude, longitude = location.latitude, location.longitude
 
-        # 🔹 Verificar si el usuario tiene un aviso pendiente
-        if user_id not in avisos_pendientes:
+        # Buscar el aviso pendiente del usuario
+        for aviso in context.bot_data["avisos_pendientes"]:
+            if aviso["user_id"] == user_id and aviso["ubicacion"] is None:
+                aviso["ubicacion"] = (latitude, longitude)
+                break
+        else:
             await update.message.reply_text(
                 "⚠️ No tienes un aviso pendiente. Usa /aviso antes de enviar tu ubicación.",
                 parse_mode="Markdown"
             )
             return
 
-        user_aviso = avisos_pendientes.pop(user_id)
-
-        # 🔹 Obtener la fecha y hora actual
+        # Obtener la fecha y hora actual
         fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # 🔹 Obtener los datos del usuario
+        # Obtener los datos del usuario
         datos_usuario = context.user_data.get(user_id, {})
         nombre = datos_usuario.get("nombre", "Desconocido")
         telefono = datos_usuario.get("telefono", "No proporcionado")
         dni = datos_usuario.get("dni", "No proporcionado")
+        user_aviso = aviso["descripcion"]  # Obtener la descripción del aviso
 
-        # 🔹 Formatear el mensaje para el grupo
+        # Formatear el mensaje para el grupo
         mensaje_grupo = (
             f"🚨 *NUEVO INCIDENTE REPORTADO*\n\n"
             f"📌 *Descripción:* {user_aviso}\n"
@@ -256,17 +265,21 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🔔 ¡Atención a este incidente!"
         )
 
-        # 🔹 Enviar el aviso al grupo
+        # Enviar el aviso al grupo
         await context.bot.send_message(chat_id=TELEGRAM_GROUP_ID, text=mensaje_grupo, parse_mode="Markdown")
 
-        # 🔹 Confirmar al usuario que el aviso fue enviado
+        # Confirmar al usuario que el aviso fue enviado
         await update.message.reply_text(
             "✅ *Aviso registrado y enviado al grupo de incidentes.*\n"
             "Gracias por reportarlo.",
             parse_mode="Markdown"
         )
 
-        # 🔹 Registrar en consola
+        # Registrar el cooldown
+        context.user_data[user_id]["ultimo_aviso"] = time.time()
+
+        # context.bot_data["avisos_gestionados"].append(aviso)
+
         print("―――――――――――――――――――――――――――――――――――――")
         print("📢 NUEVO AVISO RECIBIDO:")
         print(f"👤 Nombre: {nombre}")
@@ -277,8 +290,37 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print(f"📍 Ubicación: {latitude}, {longitude}")
 
     except Exception as e:
-        print(f"Error en recibir_ubicacion: {e}")
+        print(f"❌ Error en recibir_ubicacion: {e}")
         await update.message.reply_text("❌ Ha ocurrido un error al procesar la ubicación.")
+
+async def pendientes(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Muestra los avisos pendientes y los ya gestionados."""
+    mensaje = "📋 *Estado de los avisos de emergencia:*\n\n"
+
+    # Asegurar que las listas existen en `bot_data`
+    if "avisos_pendientes" not in context.bot_data:
+        context.bot_data["avisos_pendientes"] = []
+    if "avisos_gestionados" not in context.bot_data:
+        context.bot_data["avisos_gestionados"] = []
+
+    # Mostrar avisos pendientes
+    if context.bot_data["avisos_pendientes"]:
+        mensaje += "⏳ *Avisos pendientes:*\n"
+        for aviso in context.bot_data["avisos_pendientes"]:
+            ubicacion = f"📍 {aviso['ubicacion'][0]}, {aviso['ubicacion'][1]}" if aviso["ubicacion"] else "📍 Ubicación pendiente"
+            mensaje += f"🔹 {aviso['descripcion']}\n{ubicacion}\n\n"
+    else:
+        mensaje += "✅ No hay avisos pendientes.\n\n"
+
+    # Mostrar avisos gestionados
+    if context.bot_data["avisos_gestionados"]:
+        mensaje += "✅ *Avisos gestionados:*\n"
+        for aviso in context.bot_data["avisos_gestionados"]:
+            mensaje += f"✔️ {aviso['descripcion']}\n\n"
+    else:
+        mensaje += "ℹ️ No hay avisos gestionados aún.\n"
+
+    await update.message.reply_text(mensaje, parse_mode="Markdown")
 
 async def unknown_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Responde a mensajes no relacionados con emergencias."""

@@ -1,0 +1,29 @@
+Este código es un bot de Telegram para reportar emergencias, desarrollado con Python y las bibliotecas "python-telegram-bot" y "openai".  
+
+1. Configuración Inicial  
+   - Se importan librerías necesarias ("asyncio", "telegram.ext", "openai", etc.).  
+   - Se definen las claves API de OpenAI y Telegram.  
+   - Se configura el modelo de OpenAI ("gpt-4o-mini") y el contexto del bot.  
+   - Se inicializan estructuras de datos para gestionar avisos de emergencia.  
+
+2. Funciones Principales:  
+   - Menú y Ayuda:  
+     - "/menu": Muestra los comandos disponibles.  
+     - "/help": Explica cómo usar el bot.  
+   - Verificación de Usuario:  
+     - "/verificar": Solicita nombre, teléfono y DNI.  
+     - "recibir_datos()": Valida y almacena los datos del usuario.  
+   - Gestión de Avisos:  
+     - "/aviso [descripción]": Permite reportar emergencias.  
+     - "recibir_ubicacion()": Recibe la ubicación y completa el reporte.  
+     - "/pendientes": Muestra los avisos pendientes y gestionados.  
+   - Información Adicional:  
+     - "/contacto": Lista números de emergencia en España.  
+     - "unknown_message()": Responde a mensajes irrelevantes.  
+   - Control del Bot:  
+     - "/stop": Detiene la ejecución del bot.  
+
+3. Ejecución del Bot:  
+   - Se crea la instancia del bot con "ApplicationBuilder()".  
+   - Se registran los manejadores de comandos y mensajes.  
+   - Se inicia el bot con "run_polling()".  
