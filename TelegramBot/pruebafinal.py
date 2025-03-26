@@ -36,16 +36,14 @@ system_content = {"role": "system", "content": system_content_prompt}
 messages_to_send = [system_content]
 
 # Diccionario para almacenar avisos pendientes de ubicación
-avisos_pendientes = {}
-avisos_enviados = {}
-
-# Expresión regular para validar avisos (evita avisos falsos)
-VALID_AVISO_PATTERN = re.compile(r"(accidente|incendio|robo|fuego|choque|explosión|inundación|sismo|derrumbe|emergencia)", re.IGNORECASE)
+avisos_pendientes = {}  # Clave: user_id, Valor: (descripción, ubicación)
+avisos_gestionados = []  # Lista de avisos ya aprobados o atendidos
+avisos_enviados = {}  # Para evitar spam de avisos por usuario
 
 # Diccionario para almacenar datos de usuarios verificados
 usuarios_verificados = {}
 
-### FUNCIONES BOT IA
+### FUNCIONES BOT IA-------------------------------------------------------------------
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Muestra los comandos disponibles de manera organizada."""
@@ -55,6 +53,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🔹 Usa los siguientes comandos:\n\n"
             "✅ /verificar - Registrar tus datos personales para reportar avisos.\n"
             "✅ /aviso - Enviar un aviso de emergencia.\n"
+            "✅ /pendientes - Ver los avisos pendientes y los gestionados.\n"
             "✅ /contacto - Ver los números de emergencia en España.\n"
             "✅ /help - Información sobre cómo usar el bot.\n"
             "✅ /stop - Detener el bot.\n\n"
@@ -65,6 +64,33 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         print(f"Error en /menu: {e}")
         await update.message.reply_text("❌ Ha ocurrido un error al mostrar el menú.")
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Explica detalladamente cómo usar el bot paso a paso, incluyendo la verificación obligatoria."""
+    help_text = (
+        "⚠️ *Bienvenido al Bot de Avisos de Emergencia* ⚠️\n\n"
+        "Este bot está diseñado para proporcionar información en tiempo real sobre emergencias "
+        "y alertas importantes en tu zona. Puedes reportar incidentes, recibir avisos de seguridad "
+        "y consultar números de emergencia.\n\n"
+        "🔹 *¿Cómo funciona?*\n"
+        "1️⃣ Usa `/verificar` para registrar tus datos antes de enviar un aviso.\n"
+        "2️⃣ Usa `/aviso [descripción]` para reportar una emergencia.\n"
+        "3️⃣ Comparte tu ubicación cuando se te solicite.\n"
+        "4️⃣ Usa `/pendientes` para ver los avisos en espera y los que han sido gestionados.\n"
+        "5️⃣ Consulta los números de emergencia con `/contacto`.\n"
+        "6️⃣ Usa `/help` si tienes dudas.\n\n"
+        "📜 *Comandos Disponibles:*\n"
+        "✅ /menu - Muestra el menú de opciones.\n"
+        "✅ /verificar - Registra tus datos personales.\n"
+        "✅ /aviso - Reporta una emergencia con ubicación.\n"
+        "✅ /pendientes - Lista de avisos pendientes y aprobados.\n"
+        "✅ /contacto - Muestra los números de emergencia.\n"
+        "✅ /help - Explicación sobre cómo usar el bot.\n\n"
+        "📧 *Soporte técnico:* contacto@empresa.com\n"
+        "📞 *Teléfono de atención:* +34 600 123 456"
+    )
+    
+    await update.message.reply_text(help_text, parse_mode="Markdown")
 
 async def verificar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Solicita los datos personales antes de permitir enviar un aviso."""
@@ -126,126 +152,67 @@ async def recibir_datos(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("✅ Datos verificados. Ahora puedes enviar avisos con /aviso.")
 
-async def evaluar_gravedad_aviso(aviso_texto):
-    """Evalúa la gravedad del aviso y determina si es válido o no."""
-    try:
-        prompt = (
-            f"Analiza el siguiente reporte de emergencia:\n\n"
-            f"Aviso: \"{aviso_texto}\"\n\n"
-            f"Clasifícalo en una de estas categorías y responde con SOLO UNA PALABRA EXACTA:\n"
-            f"- 'grave': Si el incidente pone en riesgo la vida, salud o seguridad de las personas. Ejemplos:\n"
-            f"  - Accidentes de tráfico con heridos\n"
-            f"  - Incendios, explosiones o derrumbes\n"
-            f"  - Robos violentos, peleas con armas, tiroteos\n"
-            f"  - Personas inconscientes, infartos, ataques epilépticos\n"
-            f"  - Desastres naturales como sismos, inundaciones, tormentas fuertes\n"
-            f"  - Suicidios o intentos de suicidio\n\n"
-            f"- 'no grave': Si es un problema menor que no requiere respuesta inmediata de emergencia. Ejemplos:\n"
-            f"  - Peleas sin armas o sin heridos\n"
-            f"  - Molestias leves como ruido o discusiones\n"
-            f"  - Objetos perdidos o robos menores sin violencia\n"
-            f"  - Enfermedades leves o síntomas menores\n\n"
-            f"- 'inválido': Si el mensaje no tiene sentido, es una broma, un error o no es una emergencia. Ejemplos:\n"
-            f"  - Spam, bromas o mensajes aleatorios\n"
-            f"  - Situaciones que no son urgentes (ej. 'perdí mi celular', 'no tengo internet')\n"
-            f"  - Avisos sin información clara\n\n"
-            f"Responde con SOLO UNA PALABRA: 'grave', 'no grave' o 'inválido'. No agregues ninguna otra explicación."
-        )
-
-        response = client.chat.completions.create(
-            model=MODEL,
-            messages=[
-                system_content,
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.1,  # Más precisión, menos respuestas aleatorias
-            max_tokens=5  # Solo responde con una palabra
-        )
-
-        resultado = response.choices[0].message.content.strip().lower()
-
-        if resultado in ["grave", "no grave", "inválido"]:
-            return resultado
-        else:
-            return "error"
-
-    except Exception as e:
-        print(f"Error al evaluar la gravedad del aviso: {e}")
-        return "error"
-
 async def aviso(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Permite a los usuarios enviar un aviso personalizado y solicita ubicación solo si verificaron sus datos."""
+    """Procesa cualquier aviso sin evaluar su gravedad."""
     try:
         user_id = update.message.from_user.id
 
-        # 🔹 Verifica si el usuario ya ha enviado sus datos
+        # 🔹 Verifica si el usuario está verificado
         if user_id not in context.user_data or "datos_verificados" not in context.user_data[user_id]:
             await update.message.reply_text(
-                "⚠️ *Antes de enviar un aviso, debes verificar tus datos.*\n"
-                "Usa el comando `/verificar` para registrarte.",
+                "⚠️ *Debes verificar tus datos antes de enviar un aviso.*\nUsa `/verificar`.",
                 parse_mode="Markdown"
             )
-            return  # Detiene la ejecución de la función hasta que el usuario verifique sus datos
-
-        # 🔹 Control de spam: Limita a 3 avisos en poco tiempo
-        if user_id in avisos_enviados and avisos_enviados[user_id] >= 3:
-            await update.message.reply_text("❌ Has enviado demasiados avisos en poco tiempo. Espera antes de enviar otro.")
             return
 
-        # 🔹 Verifica que el usuario haya enviado un aviso con texto
-        if not context.args:
+        # 🔹 Extraer el texto del aviso correctamente
+        user_aviso = update.message.text.replace("/aviso", "").strip()
+
+        if not user_aviso:
             await update.message.reply_text(
-                "⚠️ *Formato incorrecto.*\n"
-                "Usa el comando así:\n"
-                "`/aviso [descripción del incidente]`\n\n"
-                "Ejemplo:\n"
-                "`/aviso Accidente en la autopista A3, dirección Madrid.`",
+                "⚠️ *Formato incorrecto.*\nUsa:\n`/aviso [descripción detallada del incidente]`",
                 parse_mode="Markdown"
             )
             return
 
-        user_aviso = " ".join(context.args)
+        # 🔹 Guarda el aviso sin importar su contenido
+        avisos_pendientes[user_id] = (user_aviso, "Ubicación pendiente")
 
-        # 🔹 Evaluar la gravedad del aviso con IA
-        gravedad = await evaluar_gravedad_aviso(user_aviso)
-        
-        if gravedad == "grave":
-            # Guarda el aviso y aumenta el contador
-            avisos_pendientes[user_id] = user_aviso
-            avisos_enviados[user_id] = avisos_enviados.get(user_id, 0) + 1
-
-            # Pide ubicación
-            keyboard = ReplyKeyboardMarkup(
+        await update.message.reply_text(
+            "✅ *Aviso registrado correctamente.*\nSi es necesario, envía tu ubicación.",
+            reply_markup=ReplyKeyboardMarkup(
                 [[KeyboardButton("📍 Enviar Ubicación", request_location=True)]],
                 one_time_keyboard=True,
                 resize_keyboard=True
-            )
-
-            await update.message.reply_text(
-                "📌 *Por favor, comparte tu ubicación para precisar el aviso.*\n"
-                "Pulsa el botón de abajo para enviar tu ubicación exacta.",
-                reply_markup=keyboard,
-                parse_mode="Markdown"
-            )
-        
-        elif gravedad == "no grave":
-            await update.message.reply_text(
-                "❌ *Aviso no aceptado.*\n"
-                "El incidente descrito no parece ser una emergencia grave. "
-                "Si consideras que es realmente urgente, proporciona más detalles.",
-                parse_mode="Markdown"
-            )
-
-        else:  # "inválido" o "error"
-            await update.message.reply_text(
-                "🚫 *Aviso inválido.*\n"
-                "Parece que el mensaje no tiene sentido o no es una emergencia real.",
-                parse_mode="Markdown"
-            )
+            ),
+            parse_mode="Markdown"
+        )
 
     except Exception as e:
-        print(f"Error en /aviso: {e}")
+        print(f"❌ Error en /aviso: {e}")
         await update.message.reply_text("❌ Ha ocurrido un error al procesar tu aviso.")
+
+async def pendientes(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Muestra los avisos pendientes y los ya gestionados."""
+    mensaje = "📋 *Estado de los avisos de emergencia:*\n\n"
+
+    # 🔹 Mostrar avisos pendientes
+    if avisos_pendientes:
+        mensaje += "⏳ *Avisos pendientes:*\n"
+        for user_id, (descripcion, ubicacion) in avisos_pendientes.items():
+            mensaje += f"🔹 {descripcion}\n📍 Ubicación: {ubicacion}\n\n"
+    else:
+        mensaje += "✅ No hay avisos pendientes.\n\n"
+
+    # 🔹 Mostrar avisos gestionados
+    if avisos_gestionados:
+        mensaje += "✅ *Avisos gestionados:*\n"
+        for aviso in avisos_gestionados:
+            mensaje += f"✔️ {aviso}\n\n"
+    else:
+        mensaje += "ℹ️ No hay avisos gestionados aún.\n"
+
+    await update.message.reply_text(mensaje, parse_mode="Markdown")
 
 async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Recibe la ubicación del usuario y la asocia al aviso previo, luego lo envía al grupo."""
@@ -262,7 +229,10 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # 🔹 Verificar si el usuario tiene un aviso pendiente
         if user_id not in avisos_pendientes:
-            await update.message.reply_text("❌ No tienes ningún aviso pendiente. Usa /aviso primero.")
+            await update.message.reply_text(
+                "⚠️ No tienes un aviso pendiente. Usa /aviso antes de enviar tu ubicación.",
+                parse_mode="Markdown"
+            )
             return
 
         user_aviso = avisos_pendientes.pop(user_id)
@@ -328,6 +298,22 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print(f"Error en /stop: {e}")
         await update.message.reply_text("❌ Error al intentar detener el bot.")
 
+async def contacto(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Muestra los números de emergencia en España."""
+    emergency_numbers = (
+        "📞 *Números de Emergencia en España:*\n\n"
+        "🚑 Emergencias generales: *112*\n"
+        "🚔 Policía Nacional: *091*\n"
+        "👮‍♂️ Guardia Civil: *062*\n"
+        "🚒 Bomberos: *080* / *085*\n"
+        "🏥 Emergencias sanitarias: *061*\n"
+        "⚠️ Protección Civil: *900 400 012*\n"
+        "🚨 Cruz Roja: *900 100 333*\n"
+        "🆘 Violencia de género: *016*\n\n"
+        "🔹 *Guarda estos números en tu móvil para cualquier emergencia.*"
+    )
+    await update.message.reply_text(emergency_numbers, parse_mode="Markdown")
+
 ### ARRANQUE DEL BOT
 if __name__ == '__main__':
     application = ApplicationBuilder().token(telegram_bot_key).build()
@@ -338,8 +324,12 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("aviso", aviso))
     application.add_handler(MessageHandler(filters.LOCATION, recibir_ubicacion))
     application.add_handler(CommandHandler("contacto", contacto))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, unknown_message))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, unknown_message))    
+    application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, unknown_message)) ##sd
     application.add_handler(CommandHandler("stop", stop))
+    application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("pendientes", pendientes))
+
 
     print("✅ El bot está en ejecución. Envía un mensaje en Telegram para probarlo.")
     application.run_polling()
