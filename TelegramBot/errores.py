@@ -1,9 +1,10 @@
 import nest_asyncio
+import json
 import os
 import asyncio
 import re
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 import openai
 from telegram import (Update, KeyboardButton, ReplyKeyboardMarkup)
 from telegram.ext import (ApplicationBuilder, MessageHandler, CommandHandler, filters, ContextTypes)
@@ -34,8 +35,122 @@ avisos_pendientes = {}  # Clave: user_id, Valor: (descripción, ubicación)
 avisos_gestionados = []  # Lista de avisos ya aprobados o atendidos
 avisos_enviados = {}  # Para evitar spam de avisos por usuario
 usuarios_verificados = {} # almacenar datos de usuarios verificados
+last_help_request = {} # almacenar ultima vez que usuario uso comando /ayuda
 
-#---------------------
+AVISOS = {
+    "ALUMBRADO PÚBLICO": [
+        "Calle apagada", 
+        "Calle apagada v2", 
+        "Calle apagada v3", 
+        "Calle apagada v4", 
+        "Farola apagada", 
+        "Otras averías de alumbrado"
+    ],
+    "Aparcamiento regulado": [
+        "Aparcamiento regulado"
+    ],
+    "ÁRBOLES Y PARQUES": [
+        "Árbol en mal estado", 
+        "Caminos no pavimentados", 
+        "Incidencias de riego", 
+        "Incidencias en alcorque o hueco", 
+        "Plagas", 
+        "Poda de árbol", 
+        "Quitar maleza", 
+        "Sustitución de árbol"
+    ],
+    "AREAS INFANTILES, ÁREAS DE MAYORES Y CIRCUITOS": [
+        "Área de mayores y circuitos", 
+        "Área infantil"
+    ],
+    "CALZADAS Y ACERAS": [
+        "Alcantarillado", 
+        "Desperfecto en acera", 
+        "Desperfecto en calzada", 
+        "Hidrantes de bomberos", 
+        "Otras incidencias en calzadas y aceras", 
+        "Tapas de registro"
+    ],
+    "CUBOS Y CONTENEDORES": [
+        "Cambio de tamaño de cubo", 
+        "Cambio de ubicación de cubo o contenedor", 
+        "Cubo o contenedor abandonado", 
+        "Cubo o contenedor en mal estado", 
+        "Horquillas delimitadoras", 
+        "Nuevo cubo o contenedor", 
+        "Vaciado de aceite", 
+        "Vaciado de cubo o contenedor"
+    ],
+    "FUENTES": [
+        "Incidencias en fuentes de beber", 
+        "Incidencias en fuentes ornamentales"
+    ],
+    "LIMPIEZA Y PINTADAS": [
+        "Limpieza en solares municipales", 
+        "Limpieza en vías públicas", 
+        "Limpieza mobiliario urbano o áreas infantiles", 
+        "Pintadas y grafitis", 
+        "Pintadas y grafitis v2", 
+        "Pintadas y grafitis v3"
+    ],
+    "MOBILIARIO URBANO": [
+        "Banco", 
+        "Bolardo u horquilla", 
+        "Otros", 
+        "Vallas"
+    ],
+    "PAPELERAS": [
+        "Falta de bolsas para excrementos caninos", 
+        "Mal estado de papelera", 
+        "Nueva instalación de papelera", 
+        "Vaciado de papelera"
+    ],
+    "PLAGAS": [
+        "Ratas y cucarachas"
+    ],
+    "RETIRADAS DE ELEMENTOS": [
+        "Animales muertos", 
+        "Contenedor de ropa no autorizado", 
+        "Muebles abandonados en vía pública", 
+        "Muebles particulares", 
+        "Recogida de saco o contenedor de escombros"
+    ],
+    "RIO MANZANARES": [
+        "Río Manzanares"
+    ],
+    "SEÑALES Y SEMÁFOROS": [
+        "Incidencia en avisador acústico de semáforo", 
+        "Incidencia en pulsador", 
+        "Incidencia en señal", 
+        "Semáforo apagado"
+    ],
+    "VEHICULOS ABANDONADOS. RETIRADA DE VEHICULO": [
+        "Vehículos abandonados. Retirada de vehículo"
+    ]
+}
+
+PETICIONES = {
+    "ALUMBRADO PÚBLICO": [
+        "Peticiones alumbrado"
+    ],
+    "AREAS INFANTILES, ÁREAS DE MAYORES Y CIRCUITOS": [
+        "Nueva Instalación"
+    ],
+    "CALZADAS Y ACERAS": [
+        "Mejora de accesibilidad"
+    ],
+    "FUENTES": [
+        "Nueva Instalación de fuente de beber"
+    ],
+    "MOBILIARIO URBANO": [
+        "Nueva Instalación"
+    ],
+    "SEÑALES Y SEMÁFOROS": [
+        "Nueva Señal"
+    ]
+}
+
+#----------------------------------------------------------------------------
 
 async def iniciar_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "avisos_pendientes" not in context.bot_data:
@@ -50,9 +165,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "⚠️ *Bienvenido al Bot de Avisos de Emergencia.*\n\n"
             "🔹 Usa los siguientes comandos principales:\n\n"
             "✅ /verificar - Registrar tus datos personales para reportar avisos.\n"
-            "✅ /aviso - Enviar un aviso de emergencia.\n"
-            "✅ /pendientes - Ver los avisos pendientes y los gestionados.\n"
-            "✅ /ayuda - Informa de lo que se debería de hacer en X caso.\n"
+            "✅ /ayuda - Reporta una emergencia.\n"
+            "✅ /asistente - Informa de lo que se debería de hacer en X caso.\n"
             "✅ /contacto - Ver los números de emergencia en España.\n"
             "✅ /datos - Ver los datos que has registrado.\n\n"
             "🔸 Para ver todos los comandos disponibles, usa: /comandos"
@@ -73,14 +187,14 @@ async def como_usar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         "🔹 *¿Cómo funciona?*\n"
         "1️⃣ Usa `/verificar` para registrar tus datos antes de enviar un aviso.\n"
-        "2️⃣ Usa `/aviso [descripción]` para reportar una emergencia.\n"
+        "2️⃣ Usa `/ayuda [descripción]` para reportar una emergencia.\n"
         "3️⃣ Comparte tu ubicación cuando se te solicite.\n"
         "4️⃣ Envía una *foto o video* del incidente después de compartir tu ubicación.\n"
         "5️⃣ Usa `/pendientes` para ver los avisos en espera y los que han sido gestionados.\n"
         "6️⃣ Consulta los números de emergencia con `/contacto`.\n"
         "7️⃣ Usa `/datos` para ver los datos que has registrado.\n"
         "8️⃣ Usa `/modificar` para modificar los datos que has registrado.\n"
-        "9️⃣ Usa `/ayuda [incidente]` para obtener recomendaciones sobre qué hacer en una situación de emergencia.\n"
+        "9️⃣ Usa `/asistente [incidente]` para obtener recomendaciones sobre qué hacer en una situación de emergencia.\n"
         "🔟 Usa `/help` si tienes dudas.\n\n"
     )
     
@@ -92,9 +206,9 @@ async def comandos(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "📜 *Comandos Disponibles:*\n\n"
         "✅ /start - Muestra el menú de opciones.\n"
         "✅ /verificar - Registra tus datos personales.\n"
-        "✅ /aviso - Reporta una emergencia con ubicación.\n"
+        "✅ /ayuda - Reporta una emergencia.\n"
         "✅ /pendientes - Lista de avisos pendientes y aprobados.\n"
-        "✅ /ayuda - Informa de lo que se debería de hacer en X caso.\n"
+        "✅ /asistente - Informa de lo que se debería de hacer en X caso.\n"
         "✅ /contacto - Muestra los números de emergencia.\n"
         "✅ /datos - Ver los datos que has registrado.\n"
         "✅ /modificar - Modificar los datos que has registrado.\n"
@@ -172,7 +286,7 @@ async def recibir_datos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(f"📞 Teléfono: {telefono}")
     print("―――――――――――――――――――――――――――――――――――――")
 
-    await update.message.reply_text("✅ Datos verificados. Ahora puedes enviar avisos con /aviso.")
+    await update.message.reply_text("✅ Datos verificados. Ahora puedes enviar reportes con /ayuda.")
 
 async def modificar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Permite al usuario modificar sus datos si se ha equivocado."""
@@ -459,42 +573,182 @@ async def contacto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(emergency_numbers, parse_mode="Markdown")
 
-async def ayuda_ia(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Responde con información útil sobre qué hacer en diferentes emergencias usando OpenAI."""
-
-    user_input = update.message.text.strip().lower()
-
-    # Mensaje de contexto para OpenAI
-    ai_prompt = (
-        "Eres un asistente virtual para emergencias. Tu tarea es brindar consejos sobre cómo actuar en situaciones de emergencia. "
-        "Mantén siempre la calma y proporciona instrucciones claras. Si el incidente es un accidente, como un brazo roto, "
-        "proporciona pasos prácticos para mantener la calma y lo que se debe hacer."
+def analizar_reporte(mensaje):
+    response = openai.ChatCompletion.create(
+        model=MODEL,
+        messages=[
+            {"role": "system", "content": "Eres un asistente que clasifica reportes de incidencias en una ciudad."},
+            {"role": "user", "content": f"Clasifica este reporte: {mensaje}"}
+        ],
+        functions=[
+            {
+                "name": "clasificar_reporte",
+                "description": "Clasifica un reporte de aviso o petición en su categoría y subcategoría correspondiente",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "tipo_reporte": {"type": "string", "enum": ["aviso", "petición"]},
+                        "categoria": {"type": "string"},
+                        "subcategoria": {"type": "string"}
+                    },
+                    "required": ["tipo_reporte", "categoria", "subcategoria"]
+                }
+            }
+        ],
+        function_call="auto"
     )
 
-    # Crear el mensaje de entrada para el modelo GPT
-    messages_to_send = [
-        {"role": "system", "content": ai_prompt},
-        {"role": "user", "content": user_input}
-    ]
+    # 📌 Extraer los datos de la respuesta
+    result = response.get("choices", [{}])[0].get("message", {}).get("function_call", {}).get("arguments", "{}")
 
-    try:
-        # Realizar la solicitud a OpenAI utilizando la nueva interfaz de la API
-        response = openai.chat.Completion.create(
-            model=MODEL,
-            messages=messages_to_send
+    if result:
+        # Reemplazamos 'true' y 'false' por True y False para hacer un JSON válido en Python
+        result = result.replace("true", "True").replace("false", "False")
+        
+        try:
+            data = json.loads(result)  # Convertir JSON a diccionario
+            return data  # Devuelve el diccionario con el reporte clasificado
+        except json.JSONDecodeError as e:
+            print(f"Error al procesar JSON: {e}")
+            return None
+    
+    return None
+
+def analizar_direccion(mensaje):
+    response = openai.ChatCompletion.create(
+        model=MODEL,
+        messages=[
+            {"role": "system", "content": "Eres un asistente que detecta direcciones completas en los mensajes."},
+            {"role": "user", "content": f"Extrae la dirección completa de este mensaje: {mensaje}"}
+        ],
+        functions=[
+            {
+                "name": "extraer_direccion",
+                "description": "Detecta una dirección completa en el mensaje.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "direccion": {"type": "string"}
+                    },
+                    "required": ["direccion"]
+                }
+            }
+        ],
+        function_call="auto"
+    )
+
+    # 📌 Extraer los datos de la respuesta
+    result = response.get("choices", [{}])[0].get("message", {}).get("function_call", {}).get("arguments", "{}")
+    
+    if result:
+        try:
+            data = json.loads(result)  # Convertir JSON a diccionario
+            direccion = data.get("direccion")  # Obtener la dirección extraída
+            if direccion and validar_direccion(direccion):  # Validar la dirección
+                return direccion
+            else:
+                return "⚠️ La dirección proporcionada parece incorrecta. Por favor, verifica y corrige la dirección."
+        except json.JSONDecodeError as e:
+            print(f"Error al procesar JSON: {e}")
+            return None
+    
+    return None
+
+def validar_direccion(direccion):
+    # Expresión regular que acepta una variedad de direcciones
+    patron = re.compile(r"([A-Za-z0-9áéíóúÁÉÍÓÚñÑ\s,]+(?:[\d\s,]+)?)\s*(\d{5})?$")
+    if patron.match(direccion):
+        return True
+    else:
+        return False
+
+async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_message = update.message.text.replace("/ayuda", "").strip()
+    user_id = update.message.from_user.id
+
+    # Verificar si el usuario está verificado
+    if user_id not in context.user_data or "datos_verificados" not in context.user_data[user_id]:
+        await update.message.reply_text("⚠️ Necesitas verificar tus datos antes de enviar un reporte.\n"
+        "Usa el comando /verificar para iniciar el proceso.")
+        return
+
+    # Verificar si el usuario está enviando el comando sin mensaje
+    if not user_message:
+        await update.message.reply_text(
+            "⚠️ Por favor, proporciona un mensaje después de /ayuda\n\n"
+            "Aquí te dejamos algunos ejemplos para que sepas cómo enviarlo correctamente:\n\n"
+            "1️⃣ **Emergencia** (ejemplo de accidente):\n"
+            "`/ayuda accidente de coche en la M45 salida 23`\n"
+            "Este tipo de mensaje es para situaciones urgentes donde necesitas asistencia inmediata.\n\n"
+            "2️⃣ **Reporte general** (ejemplo de aviso de incidente):\n"
+            "`/ayuda hay un bache en la calle Mayor 12, Madrid`\n"
+            "Utiliza este tipo de mensaje para reportar problemas que no son emergencias, como baches, apagones, etc.\n\n"
+            "3️⃣ **Petición de ayuda** (ejemplo de solicitud de recursos):\n"
+            "`/ayuda necesito asistencia médica en Avenida de la Paz 10, Madrid, 28010`\n"
+            "Usa este mensaje cuando necesites ayuda con recursos específicos, como asistencia médica o bomberos.\n\n"
+            "🔍 **Consejos importantes**:\n"
+            "- Asegúrate de incluir una descripción clara de lo sucedido.\n"
+            "- Si es relevante, proporciona una dirección completa o una ubicación (por ejemplo, Calle del Sol 3, Madrid, 28001).\n"
+            "- Si es una emergencia, usa palabras como 'accidente', 'fuego', 'herido', etc.\n\n"
+            "📍 **Ejemplo completo de reporte con dirección**:\n"
+            "`/ayuda accidente de tráfico en la Calle Mayor 3, Madrid, 28001, con varios coches implicados`",
+            parse_mode="Markdown"
+        )
+        return
+
+    # Verificar si el usuario ha usado el comando recientemente
+    current_time = datetime.now()
+    if user_id in last_help_request:
+        last_request_time = last_help_request[user_id]
+        time_difference = current_time - last_request_time
+
+        # Si ha pasado menos de 1 minuto desde la última solicitud, no permitir enviar el comando nuevamente
+        if time_difference < timedelta(minutes=1):
+            await update.message.reply_text("⚠️ Por favor, espera un minuto antes de enviar otro reporte.")
+            return
+
+    # Actualizar el tiempo de la última solicitud del usuario
+    last_help_request[user_id] = current_time
+
+    print(f"\n🔹 Nuevo mensaje recibido de {user_id}: {user_message}")
+
+    # 📌 Intentamos clasificarlo como reporte general
+    reporte = analizar_reporte(user_message)  # También sin 'await'
+    if reporte:
+        tipo_reporte = reporte["tipo_reporte"]
+        categoria = reporte["categoria"]
+        subcategoria = reporte["subcategoria"]
+
+        print(f"✅ Reporte clasificado: Tipo: {tipo_reporte}, Categoría: {categoria}, Subcategoría: {subcategoria}")
+
+        respuesta = (
+            f"📋 Reporte clasificado:\n"
+            f"👤 Usuario: `{user_id}`\n"
+            f"📌 Tipo: {tipo_reporte.capitalize()}\n"
+            f"📂 Categoría: {categoria}\n"
+            f"🔖 Subcategoría: {subcategoria}"
         )
 
-        # Extraer la respuesta generada por OpenAI
-        ai_response = response['choices'][0]['message']['content']
+        # 📌 Intentamos extraer y validar la dirección
+        direccion = analizar_direccion(user_message)
+        if direccion:
+            respuesta += f"\n🗺️ Dirección: {direccion}"
 
-        # Enviar la respuesta al usuario
-        await update.message.reply_text(ai_response)
+        await update.message.reply_text(respuesta, parse_mode="Markdown")
 
-    except Exception as e:
-        print(f"❌ Error en /ayuda: {e}")
-        await update.message.reply_text("❌ Ha ocurrido un error al procesar tu solicitud. Inténtalo de nuevo.")
+        # Enviar el reporte al grupo de Telegram
+        await context.bot.send_message(
+            chat_id=TELEGRAM_GROUP_ID,
+            text=respuesta
+        )
 
-#---------------------
+        return
+
+    # 📌 Si no es ni emergencia ni reporte válido
+    print("⚠️ No se pudo clasificar el mensaje.")
+    await update.message.reply_text("⚠️ No he podido entender tu solicitud.")
+
+#----------------------------------------------------------------------------
 
 if __name__ == '__main__':
     application = ApplicationBuilder().token(telegram_bot_key).build()
@@ -509,10 +763,9 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("help", como_usar))
     application.add_handler(CommandHandler("comandos", comandos))
     application.add_handler(CommandHandler("pendientes", pendientes))
-    application.add_handler(CommandHandler("ayuda", ayuda_ia))
-    application.add_handler(MessageHandler(filters.TEXT & filters.Regex(r'^/ayuda'), ayuda_ia))
     application.add_handler(CommandHandler("modificar", modificar))
     application.add_handler(CommandHandler("datos", datos))
+    application.add_handler(CommandHandler("ayuda", ayuda))
 
     print("✅ El bot está en ejecución. Envía un mensaje en Telegram para probarlo.")
     application.run_polling()
