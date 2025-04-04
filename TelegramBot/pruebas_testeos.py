@@ -581,13 +581,13 @@ if __name__ == '__main__':
     
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("verificar", verificar))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, recibir_datos))
     application.add_handler(CommandHandler("contacto", contacto))
-    application.add_handler(CommandHandler("help", como_usar))
+    application.add_handler(CommandHandler("informacion", como_usar))
     application.add_handler(CommandHandler("comandos", comandos))
     application.add_handler(CommandHandler("modificar", modificar))
     application.add_handler(CommandHandler("datos", datos))
     application.add_handler(CommandHandler("ayuda", ayuda))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, recibir_datos))
 
     print("✅ El bot está en ejecución. Envía un mensaje en Telegram para probarlo.")
     application.run_polling()
