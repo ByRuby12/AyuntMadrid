@@ -1,23 +1,31 @@
+# -----------------------IMPORT LIBRERIAS---------------------------
+
+from diccionarios import AVISOS, PETICIONES
+from claves import openai_api_key, telegram_bot_key
+
 import nest_asyncio
+import asyncio
 import json
 import os
-import asyncio
-import re
 import time
 from datetime import datetime
+import re
 import openai
 from telegram import (Update)
 from telegram.ext import (ApplicationBuilder, MessageHandler, CommandHandler, filters, ContextTypes)
+
 #----------------------------------------------------------------------------
 
+# Permite aplicar una solución para manejar múltiples bucles de eventos asyncio 
+# dentro de un entorno donde ya hay un bucle de eventos en ejecución.
 nest_asyncio.apply()
 
 # Claves API desde variables de entorno
 TELEGRAM_GROUP_ID = "-1002545875124"
-openai_api_key = os.getenv("OPENAI_API_KEY")
-telegram_bot_key = os.getenv("CURAIME_BOT_KEY")
+os.environ["OPENAI_API_KEY"] = openai_api_key
+os.environ["CURAIME_BOT_KEY"] = telegram_bot_key
 
-# Configurar OpenAI
+# Configurar Modelo OpenAI
 MODEL = "gpt-4o-mini"
 openai.api_key = openai_api_key
 
@@ -30,122 +38,11 @@ system_content_prompt = (
 
 messages_to_send = [{"role": "system", "content": system_content_prompt}]
 
-# DICCIONARIO DE AVISOS Y PETICIONES (AYUNTAMIENTO DE MADRID)
-AVISOS = {
-    "ALUMBRADO PÚBLICO": [
-        "Calle apagada", 
-        "Calle apagada v2", 
-        "Calle apagada v3", 
-        "Calle apagada v4", 
-        "Farola apagada", 
-        "Otras averías de alumbrado"
-    ],
-    "Aparcamiento regulado": [
-        "Aparcamiento regulado"
-    ],
-    "ÁRBOLES Y PARQUES": [
-        "Árbol en mal estado", 
-        "Caminos no pavimentados", 
-        "Incidencias de riego", 
-        "Incidencias en alcorque o hueco", 
-        "Plagas", 
-        "Poda de árbol", 
-        "Quitar maleza", 
-        "Sustitución de árbol"
-    ],
-    "AREAS INFANTILES, ÁREAS DE MAYORES Y CIRCUITOS": [
-        "Área de mayores y circuitos", 
-        "Área infantil"
-    ],
-    "CALZADAS Y ACERAS": [
-        "Alcantarillado", 
-        "Desperfecto en acera", 
-        "Desperfecto en calzada", 
-        "Hidrantes de bomberos", 
-        "Otras incidencias en calzadas y aceras", 
-        "Tapas de registro"
-    ],
-    "CUBOS Y CONTENEDORES": [
-        "Cambio de tamaño de cubo", 
-        "Cambio de ubicación de cubo o contenedor", 
-        "Cubo o contenedor abandonado", 
-        "Cubo o contenedor en mal estado", 
-        "Horquillas delimitadoras", 
-        "Nuevo cubo o contenedor", 
-        "Vaciado de aceite", 
-        "Vaciado de cubo o contenedor"
-    ],
-    "FUENTES": [
-        "Incidencias en fuentes de beber", 
-        "Incidencias en fuentes ornamentales"
-    ],
-    "LIMPIEZA Y PINTADAS": [
-        "Limpieza en solares municipales", 
-        "Limpieza en vías públicas", 
-        "Limpieza mobiliario urbano o áreas infantiles", 
-        "Pintadas y grafitis", 
-        "Pintadas y grafitis v2", 
-        "Pintadas y grafitis v3"
-    ],
-    "MOBILIARIO URBANO": [
-        "Banco", 
-        "Bolardo u horquilla", 
-        "Otros", 
-        "Vallas"
-    ],
-    "PAPELERAS": [
-        "Falta de bolsas para excrementos caninos", 
-        "Mal estado de papelera", 
-        "Nueva instalación de papelera", 
-        "Vaciado de papelera"
-    ],
-    "PLAGAS": [
-        "Ratas y cucarachas"
-    ],
-    "RETIRADAS DE ELEMENTOS": [
-        "Animales muertos", 
-        "Contenedor de ropa no autorizado", 
-        "Muebles abandonados en vía pública", 
-        "Muebles particulares", 
-        "Recogida de saco o contenedor de escombros"
-    ],
-    "RIO MANZANARES": [
-        "Río Manzanares"
-    ],
-    "SEÑALES Y SEMÁFOROS": [
-        "Incidencia en avisador acústico de semáforo", 
-        "Incidencia en pulsador", 
-        "Incidencia en señal", 
-        "Semáforo apagado"
-    ],
-    "VEHICULOS ABANDONADOS. RETIRADA DE VEHICULO": [
-        "Vehículos abandonados. Retirada de vehículo"
-    ]
-}
+#-----------------------------FUNCIONES DEL BOT-----------------------------------------------
 
-PETICIONES = {
-    "ALUMBRADO PÚBLICO": [
-        "Peticiones alumbrado"
-    ],
-    "AREAS INFANTILES, ÁREAS DE MAYORES Y CIRCUITOS": [
-        "Nueva Instalación"
-    ],
-    "CALZADAS Y ACERAS": [
-        "Mejora de accesibilidad"
-    ],
-    "FUENTES": [
-        "Nueva Instalación de fuente de beber"
-    ],
-    "MOBILIARIO URBANO": [
-        "Nueva Instalación"
-    ],
-    "SEÑALES Y SEMÁFOROS": [
-        "Nueva Señal"
-    ]
-}
-
-#----------------------------------------------------------------------------
-
+# start(update, context): Muestra el mensaje de bienvenida del bot con una lista 
+# de los comandos principales disponibles para el usuario, explicando qué hace cada uno. 
+# Si ocurre un error, muestra un mensaje de error.
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Muestra los comandos disponibles de manera organizada."""
     try:
@@ -165,29 +62,31 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print(f"Error en /start: {e}")
         await update.message.reply_text("❌ Ha ocurrido un error al mostrar el menú.")
 
+# como_usar(update, context): Proporciona una explicación detallada sobre cómo utilizar 
+# el bot, paso a paso. Incluye instrucciones sobre cómo verificar datos, reportar emergencias, 
+# compartir ubicación, enviar fotos/videos, y consultar información relevante como números de emergencia.
 async def como_usar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Explica detalladamente cómo usar el bot paso a paso, incluyendo la verificación obligatoria y el envío de fotos/videos."""
     help_text = (
-        "⚠️ *Bienvenido al Bot de Avisos de Emergencia* ⚠️\n\n"
-        "Este bot está diseñado para proporcionar información en tiempo real sobre emergencias "
-        "y alertas importantes en tu zona. Puedes reportar incidentes, recibir avisos de seguridad "
-        "y consultar números de emergencia.\n\n"
-        
-        "🔹 *¿Cómo funciona?*\n"
-        "1️⃣ Usa `/verificar` para registrar tus datos antes de enviar un aviso.\n"
-        "2️⃣ Usa `/ayuda [descripción]` para reportar una emergencia.\n"
-        "3️⃣ Comparte tu ubicación cuando se te solicite.\n"
-        "4️⃣ Envía una *foto o video* del incidente después de compartir tu ubicación.\n"
-        "5️⃣ Usa `/pendientes` para ver los avisos en espera y los que han sido gestionados.\n"
-        "6️⃣ Consulta los números de emergencia con `/contacto`.\n"
-        "7️⃣ Usa `/datos` para ver los datos que has registrado.\n"
-        "8️⃣ Usa `/modificar` para modificar los datos que has registrado.\n"
-        "9️⃣ Usa `/asistente [incidente]` para obtener recomendaciones sobre qué hacer en una situación de emergencia.\n"
-        "🔟 Usa `/help` si tienes dudas.\n\n"
-    )
+            "⚠️ *Bienvenido al Bot de Avisos de Emergencia* ⚠️\n\n"
+            "Este bot está diseñado para proporcionar información en tiempo real sobre emergencias "
+            "y alertas importantes en tu zona. Puedes reportar incidentes, recibir avisos de seguridad "
+            "y consultar números de emergencia.\n\n"
+            
+            "🔹 *¿Cómo funciona?*\n"
+            "1️⃣ Usa `/verificar` para registrar tus datos antes de enviar un aviso.\n"
+            "2️⃣ Usa `/ayuda [descripción]` para reportar una emergencia.\n"
+            "3️⃣ Consulta los números de emergencia con `/contacto`.\n"
+            "4️⃣ Usa `/datos` para ver los datos que has registrado.\n"
+            "5️⃣ Usa `/modificar` para modificar los datos que has registrado.\n"
+            "6️⃣ Usa `/asistente [incidente]` para obtener recomendaciones sobre qué hacer en una situación de emergencia.\n"
+            "7️⃣ Usa `/informacion` si tienes dudas.\n"
+        )
     
     await update.message.reply_text(help_text, parse_mode="Markdown")
 
+# comandos(update, context): Muestra los comandos disponibles para el usuario, 
+# listando todas las acciones que el bot puede realizar.
 async def comandos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Muestra los comandos disponibles para el usuario."""
     command_text = (
@@ -195,13 +94,12 @@ async def comandos(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "✅ /start - Muestra el menú de opciones.\n"
         "✅ /verificar - Registra tus datos personales.\n"
         "✅ /ayuda - Reporta una emergencia.\n"
-        "✅ /pendientes - Lista de avisos pendientes y aprobados.\n"
         "✅ /asistente - Informa de lo que se debería de hacer en X caso.\n"
         "✅ /contacto - Muestra los números de emergencia.\n"
         "✅ /datos - Ver los datos que has registrado.\n"
         "✅ /modificar - Modificar los datos que has registrado.\n"
         "✅ /comandos - Muestra todos los comandos disponibles.\n"
-        "✅ /help - Explicación sobre cómo usar el bot.\n\n"
+        "✅ /informacion - Explicación sobre cómo usar el bot.\n\n"
 
         "📧 *Soporte técnico:* contacto@empresa.com\n"
         "📞 *Teléfono de atención:* +34 600 123 456"
@@ -209,6 +107,9 @@ async def comandos(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(command_text, parse_mode="Markdown")
 
+# verificar(update, context) Solicita los datos personales del usuario 
+# (nombre, correo y teléfono) para registrar y verificar su identidad antes 
+# de que pueda hacer reportes.
 async def verificar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Solicita los datos personales antes de permitir enviar un aviso."""
     user_id = update.message.from_user.id
@@ -232,6 +133,9 @@ async def verificar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Marca al usuario como pendiente de verificación
     context.user_data[user_id] = {"verificacion_pendiente": True}
 
+# recibir_datos(update, context): Recibe los datos personales enviados por 
+# el usuario, valida su formato (nombre, correo y teléfono) y los guarda si 
+# son correctos. Informa al usuario si hay errores de formato.
 async def recibir_datos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Recibe y valida los datos personales enviados por el usuario."""
     user_id = update.message.from_user.id
@@ -276,6 +180,8 @@ async def recibir_datos(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("✅ Datos verificados. Ahora puedes enviar reportes con /ayuda.")
 
+# modificar(update, context): Permite al usuario modificar los datos verificados 
+# en caso de haber cometido un error. Inicia de nuevo el proceso de verificación.
 async def modificar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Permite al usuario modificar sus datos si se ha equivocado."""
     user_id = update.message.from_user.id
@@ -306,6 +212,8 @@ async def modificar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Marca al usuario como pendiente de nueva verificación
     context.user_data[user_id] = {"verificacion_pendiente": True}
 
+# datos(update, context): Muestra los datos verificados del usuario si ya los 
+# ha registrado. Si no están verificados, solicita que el usuario use el comando /verificar.
 async def datos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Muestra los datos verificados del usuario."""
     user_id = update.message.from_user.id
@@ -328,6 +236,8 @@ async def datos(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"3️⃣ Número de teléfono: {telefono}"
     )
 
+# contacto(update, context): Muestra los números de emergencia más importantes en España 
+# (como el 112 para emergencias generales, 091 para policía, etc.).
 async def contacto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Muestra los números de emergencia en España."""
     emergency_numbers = (
@@ -344,6 +254,10 @@ async def contacto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(emergency_numbers, parse_mode="Markdown")
 
+# analizar_reporte(mensaje): Utiliza la API de OpenAI para analizar el mensaje y 
+# clasificarlo en un tipo de reporte (aviso o petición) con su categoría y subcategoría 
+# correspondiente. Si el mensaje no se clasifica correctamente, intenta asignar 
+# una categoría y subcategoría adecuadas.
 def analizar_reporte(mensaje):
     # Llamada a la API de OpenAI para analizar el mensaje
     response = openai.ChatCompletion.create(
@@ -374,14 +288,14 @@ def analizar_reporte(mensaje):
     result = response.get("choices", [{}])[0].get("message", {}).get("function_call", {}).get("arguments", "{}")
     
     print("╔―――――――――――――――――――――――――――――――――――――")
-    print("╠――――Respuesta de la IA: {result}")
+    print(f"╠――――Respuesta de la IA: {result}")
     
     if result:
         result = result.replace("true", "True").replace("false", "False")
         try:
             # Convertir la respuesta a formato JSON
             data = json.loads(result)
-            print("╠――――Datos procesados: {data}")
+            print(f"╠――――Datos procesados: {data}")
 
             tipo_reporte = data.get("tipo_reporte")
             categoria = data.get("categoria")
@@ -389,7 +303,7 @@ def analizar_reporte(mensaje):
 
             # Verificar si la categoría y subcategoría están en los diccionarios
             if tipo_reporte == "aviso":
-                print("╠――――Tipo de reporte: {tipo_reporte}, Categoría: {categoria}, Subcategoría: {subcategoria}")
+                print(f"╠――――Tipo de reporte: {tipo_reporte}, Categoría: {categoria}, Subcategoría: {subcategoria}")
                 if categoria in AVISOS and subcategoria in AVISOS[categoria]:
                     print("Reporte clasificado correctamente como aviso.")
                     return data
@@ -411,7 +325,7 @@ def analizar_reporte(mensaje):
                     print(f"╠――――Categoría o subcategoría no válida para petición: {categoria} / {subcategoria}")
                     for cat, subcats in PETICIONES.items():
                         if any(subcat.lower() in mensaje.lower() for subcat in subcats):
-                            print("╠――――Asignando categoría: {cat} y subcategoría: {subcats[0]}")
+                            print(f"╠――――Asignando categoría: {cat} y subcategoría: {subcats[0]}")
                             print("╚―――――――――――――――――――――――――――――――――――――")
                             return {"tipo_reporte": "petición", "categoria": cat, "subcategoria": subcats[0]}
 
@@ -425,6 +339,9 @@ def analizar_reporte(mensaje):
     print("No se recibió una respuesta válida del modelo.")
     return None
 
+# analizar_direccion(mensaje): Utiliza la API de OpenAI para extraer una dirección 
+# completa (calle, avenida, etc.) del mensaje del usuario. Si la dirección no es 
+# clara o válida, devuelve None.
 def analizar_direccion(mensaje):
     response = openai.ChatCompletion.create(
         model=MODEL,
@@ -464,6 +381,8 @@ def analizar_direccion(mensaje):
     
     return None
 
+# validar_direccion(direccion): Valida que una dirección tenga una estructura 
+# coherente, aceptando calles, avenidas, carreteras, con número y código postal si es posible.
 def validar_direccion(direccion):
     """
     Valida direcciones asegurando que contengan una estructura coherente.
@@ -476,6 +395,10 @@ def validar_direccion(direccion):
     )
     return bool(patron.match(direccion.strip()))
 
+# ayuda(update, context): Permite a los usuarios reportar una emergencia. 
+# Verifica si el usuario ha verificado sus datos, solicita el formato correcto de dirección 
+# si el mensaje está vacío o tiene un formato incorrecto, y valida el tipo de reporte (aviso o petición). 
+# Si todo es correcto, clasifica el reporte y lo envía al grupo de Telegram.
 async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text.replace("/ayuda", "").strip()
     user_id = update.message.from_user.id
@@ -574,8 +497,10 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text=respuesta
     )
 
-#----------------------------------------------------------------------------
+#-----------------------------MANEJADORES DEL BOT-----------------------------------------------
 
+# Este código configura y ejecuta el bot de Telegram, añadiendo manejadores para los comandos y mensajes, 
+# y luego inicia el bot en modo "polling" para que empiece a recibir y responder a las interacciones de los usuarios.
 if __name__ == '__main__':
     application = ApplicationBuilder().token(telegram_bot_key).build()
     

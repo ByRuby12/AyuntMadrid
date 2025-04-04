@@ -1,13 +1,7 @@
-import nest_asyncio
-import json
-import os
-import asyncio
-import re
-import time
-from datetime import datetime
-import openai
-from telegram import (Update, KeyboardButton, ReplyKeyboardMarkup)
-from telegram.ext import (ApplicationBuilder, MessageHandler, CommandHandler, filters, ContextTypes)
+# ESTO SON VARIABLES Y FUNCIONES QUE NO SE ESTAN USANDO ACTUALMENTE
+# ESTÁN AQUI POR SI SE NECESITAN COGER IDEAS EN UN FUTURO
+
+# --------------------------------------------------------------
 
 # Diccionario para almacenar avisos pendientes de ubicación
 avisos_pendientes = {}  # Clave: user_id, Valor: (descripción, ubicación)
@@ -16,12 +10,17 @@ avisos_enviados = {}  # Para evitar spam de avisos por usuario
 usuarios_verificados = {} # almacenar datos de usuarios verificados
 last_help_request = {} # almacenar ultima vez que usuario uso comando /ayuda
 
+# -----------------------FUNCIONES BOT---------------------------
+
+# Inicializa dos listas en context.bot_data para almacenar los avisos pendientes y gestionados.
 async def iniciar_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "avisos_pendientes" not in context.bot_data:
         context.bot_data["avisos_pendientes"] = []
     if "avisos_gestionados" not in context.bot_data:
         context.bot_data["avisos_gestionados"] = []
 
+# Procesa un aviso enviado por el usuario. Verifica si el usuario está verificado y si está dentro del 
+# tiempo de cooldown (2 minutos). Si todo es correcto, solicita la ubicación del usuario para completar el aviso.
 async def aviso(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Procesa cualquier aviso y aplica un cooldown de 2 minutos."""
     try:
@@ -83,6 +82,7 @@ async def aviso(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print(f"❌ Error en /aviso: {e}")
         await update.message.reply_text("❌ Ha ocurrido un error al procesar tu aviso.")
 
+# Recibe la ubicación enviada por el usuario y la asocia al aviso pendiente. Luego, solicita una foto o video como parte del aviso.
 async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Recibe la ubicación del usuario y la asocia al aviso previo, luego pide una foto."""
     try:
@@ -128,6 +128,8 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print(f"❌ Error en recibir_ubicacion: {e}")
         await update.message.reply_text("❌ Ha ocurrido un error al procesar la ubicación.")
 
+# Recibe una foto o video del usuario y lo asocia al aviso pendiente. Luego, envía los detalles del aviso 
+# (incluyendo la ubicación, descripción, etc.) al grupo de Telegram, junto con el archivo multimedia.
 async def recibir_contenido(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Recibe una foto o un video del usuario y lo asocia al aviso pendiente, luego lo envía al grupo."""
     try:
@@ -210,6 +212,7 @@ async def recibir_contenido(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print(f"❌ Error en recibir_contenido: {e}")
         await update.message.reply_text("❌ Ha ocurrido un error al procesar el archivo.")
 
+# Muestra el estado actual de los avisos de emergencia en el bot, incluyendo tanto los avisos pendientes como los ya gestionados
 async def pendientes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Muestra los avisos pendientes y los ya gestionados."""
     mensaje = "📋 *Estado de los avisos de emergencia:*\n\n"
@@ -238,3 +241,5 @@ async def pendientes(update: Update, context: ContextTypes.DEFAULT_TYPE):
         mensaje += "ℹ️ No hay avisos gestionados aún.\n"
 
     await update.message.reply_text(mensaje, parse_mode="Markdown")
+
+# -----------------------FUNCIONES BOT---------------------------
