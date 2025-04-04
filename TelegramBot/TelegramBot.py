@@ -1,7 +1,7 @@
 # -----------------------IMPORT LIBRERIAS---------------------------
 
 from diccionarios import AVISOS, PETICIONES
-from claves import openai_api_key, telegram_bot_key
+from claves import OPENAI_API_KEY, CURAIME_BOT_KEY
 
 import nest_asyncio
 import asyncio
@@ -22,12 +22,12 @@ nest_asyncio.apply()
 
 # Claves API desde variables de entorno
 TELEGRAM_GROUP_ID = "-1002545875124"
-os.environ["OPENAI_API_KEY"] = openai_api_key
-os.environ["CURAIME_BOT_KEY"] = telegram_bot_key
+os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
+os.environ["CURAIME_BOT_KEY"] = CURAIME_BOT_KEY
 
 # Configurar Modelo OpenAI
 MODEL = "gpt-4o-mini"
-openai.api_key = openai_api_key
+openai.api_key = OPENAI_API_KEY
 
 # Mensaje de contexto para OpenAI
 system_content_prompt = (
@@ -502,7 +502,7 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Este código configura y ejecuta el bot de Telegram, añadiendo manejadores para los comandos y mensajes, 
 # y luego inicia el bot en modo "polling" para que empiece a recibir y responder a las interacciones de los usuarios.
 if __name__ == '__main__':
-    application = ApplicationBuilder().token(telegram_bot_key).build()
+    application = ApplicationBuilder().token(CURAIME_BOT_KEY).build()
     
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("verificar", verificar))
