@@ -1,0 +1,4 @@
+# CLAVES APY DE BOT TELEGRAM Y DEL BOT OPENA AI (LOZANO)
+
+openai_api_key = "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"
+telegram_bot_key = "7571219400:AAHtwtfEa_jPukpa6_lEwg_jUN2ayiZCKaw"
