@@ -7,7 +7,7 @@ from datetime import datetime
 import openai
 from telegram import (Update, KeyboardButton, ReplyKeyboardMarkup)
 from telegram.ext import (ApplicationBuilder, MessageHandler, CommandHandler, filters, ContextTypes)
-#----------------------------------------------------------------------------
+#----------------------
 
 nest_asyncio.apply()
 
