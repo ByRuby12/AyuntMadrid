@@ -31,9 +31,25 @@ openai.api_key = OPENAI_API_KEY
 
 # Mensaje de contexto para OpenAI
 system_content_prompt = (
-    "Eres un bot de Telegram especializado en avisos de emergencia. "
-    "Proporcionas información clara y rápida sobre incidentes como incendios, accidentes y desastres naturales. "
-    "Siempre respondes con un tono profesional y directo, sin causar pánico."
+    "Eres un asistente del Ayuntamiento de Madrid encargado de clasificar reportes ciudadanos. "
+    "Los reportes pueden ser de tipo 'aviso' (problemas o incidencias) o 'petición' (solicitudes de mejora). "
+    "Debes analizar un mensaje del usuario e identificar su tipo ('aviso' o 'petición'), una categoría y una subcategoría, "
+    "siguiendo estrictamente los valores que aparecen en los diccionarios oficiales del Ayuntamiento.\n\n"
+
+    "Aquí tienes el listado completo de categorías y subcategorías válidas:\n\n"
+
+    f"Categorías y subcategorías para AVISOS:\n"
+    f"{json.dumps(AVISOS, indent=2, ensure_ascii=False)}\n\n"
+
+    f"Categorías y subcategorías para PETICIONES:\n"
+    f"{json.dumps(PETICIONES, indent=2, ensure_ascii=False)}\n\n"
+
+    "🔍 IMPORTANTE:\n"
+    "- Aunque el mensaje del usuario no coincida exactamente con las palabras del diccionario, intenta identificar sinónimos o frases similares.\n"
+    "- Si el mensaje describe una situación que encaja con alguna subcategoría, devuélvela aunque esté redactada de forma diferente.\n"
+    "- Si no puedes identificar claramente ninguna categoría o subcategoría válida, no devuelvas nada.\n\n"
+
+    "Devuelve únicamente subcategorías exactas del diccionario. No inventes nuevas.\n"
 )
 
 messages_to_send = [{"role": "system", "content": system_content_prompt}]
@@ -263,7 +279,7 @@ def analizar_reporte(mensaje):
     response = openai.ChatCompletion.create(
         model=MODEL,
         messages=[
-            {"role": "system", "content": "Eres un asistente que clasifica reportes de incidencias en una ciudad. Puedes clasificar en base a categorías y subcategorías existentes. Si el mensaje no corresponde a ninguna categoría válida, no devuelvas nada."},
+            {"role": "system", "content": system_content_prompt},  # El prompt que te puse arriba
             {"role": "user", "content": f"Clasifica este reporte: {mensaje}"}
         ],
         functions=[
@@ -339,14 +355,17 @@ def analizar_reporte(mensaje):
     print("No se recibió una respuesta válida del modelo.")
     return None
 
+ # analizar_direccion(mensaje): Utiliza la API de OpenAI para extraer una dirección
+
 # analizar_direccion(mensaje): Utiliza la API de OpenAI para extraer una dirección 
 # completa (calle, avenida, etc.) del mensaje del usuario. Si la dirección no es 
 # clara o válida, devuelve None.
 def analizar_direccion(mensaje):
+    # Solicitar la dirección de manera más directa y específica
     response = openai.ChatCompletion.create(
         model=MODEL,
         messages=[
-            {"role": "system", "content": "Eres un asistente que detecta direcciones completas en los mensajes. Solo extrae direcciones reales (calle, avenida, carretera, etc.) con nombre y número o con código postal si es posible. Si no hay dirección clara, indícalo."},
+            {"role": "system", "content": "Eres un asistente que detecta direcciones completas en los mensajes. Extrae solo las direcciones completas (calle, avenida, carretera, con nombre y número) y descarta cualquier otro tipo de información."},
             {"role": "user", "content": f"Extrae la dirección completa de este mensaje: {mensaje}"}
         ],
         functions=[
@@ -373,13 +392,14 @@ def analizar_direccion(mensaje):
             data = json.loads(result)
             direccion = data.get("direccion")
 
-            # Validar dirección
+            # Validar la dirección si es correcta
             if direccion and validar_direccion(direccion):
                 return direccion
         except json.JSONDecodeError as e:
             print(f"Error al procesar dirección JSON: {e}")
     
     return None
+
 
 # validar_direccion(direccion): Valida que una dirección tenga una estructura 
 # coherente, aceptando calles, avenidas, carreteras, con número y código postal si es posible.
@@ -389,7 +409,7 @@ def validar_direccion(direccion):
     Permite calles, avenidas, carreteras, etc., con número, ciudad y código postal.
     """
     patron = re.compile(
-        r"^(Calle|Avenida|Plaza|Paseo|Carretera|Autopista|Camino|Ronda|Travesía|Vía|Urbanización)?\s?"
+        r"^(Calle|Avenida|Plaza|Paseo|Carretera|Autopista|Camino|Ronda|Travesía|Vía|Urbanización)?\s?"+
         r"[A-Za-z0-9áéíóúÁÉÍÓÚñÑ\s]+(\s?\d+)?(,\s?[A-Za-z\s]+)?(,\s?\d{5})?$",
         re.IGNORECASE
     )
@@ -472,8 +492,9 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ No he podido entender tu solicitud.")
         return
 
-    # Analizar la dirección
+    # Analizar la direcciónn
     direccion = analizar_direccion(user_message)
+    print(f"Dirección extraída: {direccion}")
     if not direccion:
         print("⚠️ Dirección no válida. Abortando reporte.")
         await update.message.reply_text("⚠️ No he podido entender tu solicitud.")

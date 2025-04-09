@@ -1,4 +1,4 @@
-# DICCIONARIOS DE AVISOS, PETICIONES Y NUMEROS DE EMERGENCIA DEL AYUNTAMIENTO DE MADRID
+# DICCIONARIOS DE AVISOS, PETICIONES Y NUMEROS DE EMERGENCIA DEL AYUNTAMIENTO DE MADRIDD
 
 AVISOS = {
     "ALUMBRADO PÚBLICO": [
@@ -40,7 +40,7 @@ AVISOS = {
         "Cubo o contenedor abandonado", 
         "Cubo o contenedor en mal estado", 
         "Horquillas delimitadoras", 
-        "Nuevo cubo o contenedor", 
+        ## "Nuevo cubo o contenedor", 
         "Vaciado de aceite", 
         "Vaciado de cubo o contenedor"
     ],
@@ -110,6 +110,9 @@ PETICIONES = {
     ],
     "SEÑALES Y SEMÁFOROS": [
         "Nueva Señal"
+    ],
+    "PAPELERAS": [
+        "Nueva instalación de papelera" 
     ]
 }
 
