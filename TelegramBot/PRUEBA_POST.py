@@ -527,14 +527,14 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         headers = {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer '
+            'Authorization': 'Bearer 1234123412341234'
         }
 
         url = "https://servpubpre.madrid.es/AVSICAPIINT/requests?jurisdiction_id=es.madrid&return_data=false"
         
         response = requests.post(url, headers=headers, json=payload)
         
-        print(f"╠――――Respuesta del servidor: {response.text}")
+        print(f"╔――――Respuesta del servidor: {response.text}")
         print(f"╚―――――――――――――――――――――――――――――――――――――")
 
         # Enviar el mensaje de confirmación al usuario en Telegram
