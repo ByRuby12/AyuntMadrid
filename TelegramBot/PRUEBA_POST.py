@@ -534,28 +534,34 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         response = requests.post(url, headers=headers, json=payload)
         
-        print(f"╔――――Respuesta del servidor: {response.text}")
-        print(f"╚―――――――――――――――――――――――――――――――――――――")
+    try:
+        response_data = response.json()
+        service_request_id = response_data.get("service_request_id", "No disponible")
+    except json.JSONDecodeError:
+        service_request_id = "No disponible"
 
-        respuesta = (
-            f"📋 Reporte clasificado:\n"
-            f"👤 Usuario: `{user_id}`\n"
-            f"📌 Tipo: {tipo_reporte.capitalize()}\n"
-            f"📂 Categoría: {categoria}\n"
-            f"🔖 Subcategoría: {subcategoria}\n"
-            f"🗺️ Dirección: {latitude} {longitude}\n"
-            f"💬 Descripción: {user_message}"
-        )
+    print(f"╔――――Respuesta del servidor: {response.text}")
+    print(f"╚―――――――――――――――――――――――――――――――――――――")
 
-        await update.message.reply_text(respuesta, parse_mode="Markdown")
-        await context.bot.send_message(
-            chat_id=TELEGRAM_GROUP_ID,
-            text=respuesta
-        )
+    respuesta = (
+        f"📋 Reporte Seguimiento: {service_request_id}\n"
+        f"👤 Usuario: `{user_id}`\n"
+        f"📌 Tipo: {tipo_reporte.capitalize()}\n"
+        f"📂 Categoría: {categoria}\n"
+        f"🔖 Subcategoría: {subcategoria}\n"
+        f"🗺️ Dirección: {latitude} {longitude}\n"
+        f"💬 Descripción: {user_message}\n"
+    )
 
-        # Enviar el mensaje de confirmación al usuario en Telegram
-        await update.message.reply_text(f"✅Tu reporte ha sido enviado correctamente a la Plataforma del Ayuntamiento de Madrid")
-        
+    await update.message.reply_text(respuesta, parse_mode="Markdown")
+    await context.bot.send_message(
+        chat_id=TELEGRAM_GROUP_ID,
+        text=respuesta,
+        parse_mode="Markdown"
+    )
+
+    await update.message.reply_text("✅ Tu reporte ha sido enviado correctamente a la Plataforma del Ayuntamiento de Madrid")
+
     return ConversationHandler.END
 
 #-----------------------------MANEJADORES DEL BOT-----------------------------------------------
