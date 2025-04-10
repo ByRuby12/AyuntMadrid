@@ -11,8 +11,8 @@ import time
 from datetime import datetime
 import re
 import openai
-from telegram import (Update)
-from telegram.ext import (ApplicationBuilder, MessageHandler, CommandHandler, filters, ContextTypes)
+from telegram import (Update, ReplyKeyboardMarkup, KeyboardButton)
+from telegram.ext import (ApplicationBuilder, MessageHandler, CommandHandler, filters, ContextTypes, ConversationHandler)
 
 #----------------------------------------------------------------------------
 
@@ -28,6 +28,9 @@ os.environ["CURAIME_BOT_KEY"] = CURAIME_BOT_KEY
 # Configurar Modelo OpenAI
 MODEL = "gpt-4o-mini"
 openai.api_key = OPENAI_API_KEY
+
+# Etapas de la conversación
+UBICACION = 1
 
 # Mensaje de contexto para OpenAI
 system_content_prompt = (
@@ -270,19 +273,16 @@ async def contacto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(emergency_numbers, parse_mode="Markdown")
 
-# analizar_reporte(mensaje): Utiliza la API de OpenAI para analizar el mensaje y 
-# clasificarlo en un tipo de reporte (aviso o petición) con su categoría y subcategoría 
-# correspondiente. Si el mensaje no se clasifica correctamente, intenta asignar 
-# una categoría y subcategoría adecuadas.
+# Función para analizar el reporte
 def analizar_reporte(mensaje):
     # Llamada a la API de OpenAI para analizar el mensaje
     response = openai.ChatCompletion.create(
         model=MODEL,
-        messages=[
-            {"role": "system", "content": system_content_prompt},  # El prompt que te puse arriba
+        messages=[ 
+            {"role": "system", "content": system_content_prompt},
             {"role": "user", "content": f"Clasifica este reporte: {mensaje}"}
         ],
-        functions=[
+        functions=[ 
             {
                 "name": "clasificar_reporte",
                 "description": "Clasifica un reporte de aviso o petición en su categoría y subcategoría correspondiente",
@@ -302,16 +302,12 @@ def analizar_reporte(mensaje):
 
     # 📌 Extraer los datos de la respuesta
     result = response.get("choices", [{}])[0].get("message", {}).get("function_call", {}).get("arguments", "{}")
-    
-    print("╔―――――――――――――――――――――――――――――――――――――")
-    print(f"╠――――Respuesta de la IA: {result}")
-    
+
     if result:
         result = result.replace("true", "True").replace("false", "False")
         try:
             # Convertir la respuesta a formato JSON
             data = json.loads(result)
-            print(f"╠――――Datos procesados: {data}")
 
             tipo_reporte = data.get("tipo_reporte")
             categoria = data.get("categoria")
@@ -319,106 +315,29 @@ def analizar_reporte(mensaje):
 
             # Verificar si la categoría y subcategoría están en los diccionarios
             if tipo_reporte == "aviso":
-                print(f"╠――――Tipo de reporte: {tipo_reporte}, Categoría: {categoria}, Subcategoría: {subcategoria}")
                 if categoria in AVISOS and subcategoria in AVISOS[categoria]:
-                    print("Reporte clasificado correctamente como aviso.")
                     return data
                 else:
-                    # Intentar asignar la categoría y subcategoría correcta
-                    print(f"╠――――Categoría o subcategoría no válida: {categoria} / {subcategoria}")
                     for cat, subcats in AVISOS.items():
                         if any(subcat.lower() in mensaje.lower() for subcat in subcats):
-                            print(f"Asignando categoría: {cat} y subcategoría: {subcats[0]}")
                             return {"tipo_reporte": "aviso", "categoria": cat, "subcategoria": subcats[0]}
 
             elif tipo_reporte == "petición":
-                print(f"╠――――Tipo de reporte: {tipo_reporte}, Categoría: {categoria}, Subcategoría: {subcategoria}")
                 if categoria in PETICIONES and subcategoria in PETICIONES[categoria]:
-                    print("╠――――Reporte clasificado correctamente como petición.")
                     return data
                 else:
-                    # Intentar asignar la categoría y subcategoría correcta para las peticiones
-                    print(f"╠――――Categoría o subcategoría no válida para petición: {categoria} / {subcategoria}")
                     for cat, subcats in PETICIONES.items():
                         if any(subcat.lower() in mensaje.lower() for subcat in subcats):
-                            print(f"╠――――Asignando categoría: {cat} y subcategoría: {subcats[0]}")
-                            print("╚―――――――――――――――――――――――――――――――――――――")
                             return {"tipo_reporte": "petición", "categoria": cat, "subcategoria": subcats[0]}
 
-            print("⚠️ Categoría o subcategoría inválida. Rechazando el resultado.")
             return None
 
         except json.JSONDecodeError as e:
-            print(f"Error al procesar JSON: {e}")
             return None
 
-    print("No se recibió una respuesta válida del modelo.")
     return None
 
- # analizar_direccion(mensaje): Utiliza la API de OpenAI para extraer una dirección
-
-# analizar_direccion(mensaje): Utiliza la API de OpenAI para extraer una dirección 
-# completa (calle, avenida, etc.) del mensaje del usuario. Si la dirección no es 
-# clara o válida, devuelve None.
-def analizar_direccion(mensaje):
-    # Solicitar la dirección de manera más directa y específica
-    response = openai.ChatCompletion.create(
-        model=MODEL,
-        messages=[
-            {"role": "system", "content": "Eres un asistente que detecta direcciones completas en los mensajes. Extrae solo las direcciones completas (calle, avenida, carretera, con nombre y número) y descarta cualquier otro tipo de información."},
-            {"role": "user", "content": f"Extrae la dirección completa de este mensaje: {mensaje}"}
-        ],
-        functions=[
-            {
-                "name": "extraer_direccion",
-                "description": "Detecta una dirección completa en el mensaje.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "direccion": {"type": "string"}
-                    },
-                    "required": ["direccion"]
-                }
-            }
-        ],
-        function_call="auto"
-    )
-
-    # Extraer resultado del JSON
-    result = response.get("choices", [{}])[0].get("message", {}).get("function_call", {}).get("arguments", "{}")
-
-    if result:
-        try:
-            data = json.loads(result)
-            direccion = data.get("direccion")
-
-            # Validar la dirección si es correcta
-            if direccion and validar_direccion(direccion):
-                return direccion
-        except json.JSONDecodeError as e:
-            print(f"Error al procesar dirección JSON: {e}")
-    
-    return None
-
-
-# validar_direccion(direccion): Valida que una dirección tenga una estructura 
-# coherente, aceptando calles, avenidas, carreteras, con número y código postal si es posible.
-def validar_direccion(direccion):
-    """
-    Valida direcciones asegurando que contengan una estructura coherente.
-    Permite calles, avenidas, carreteras, etc., con número, ciudad y código postal.
-    """
-    patron = re.compile(
-        r"^(Calle|Avenida|Plaza|Paseo|Carretera|Autopista|Camino|Ronda|Travesía|Vía|Urbanización)?\s?"+
-        r"[A-Za-z0-9áéíóúÁÉÍÓÚñÑ\s]+(\s?\d+)?(,\s?[A-Za-z\s]+)?(,\s?\d{5})?$",
-        re.IGNORECASE
-    )
-    return bool(patron.match(direccion.strip()))
-
-# ayuda(update, context): Permite a los usuarios reportar una emergencia. 
-# Verifica si el usuario ha verificado sus datos, solicita el formato correcto de dirección 
-# si el mensaje está vacío o tiene un formato incorrecto, y valida el tipo de reporte (aviso o petición). 
-# Si todo es correcto, clasifica el reporte y lo envía al grupo de Telegram.
+# Función para manejar el comando /ayuda
 async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text.replace("/ayuda", "").strip()
     user_id = update.message.from_user.id
@@ -451,24 +370,9 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # Verificar si el usuario ha enviado un mensaje recientemente (esperar 1 minuto entre mensajes)
-    last_message_time = context.user_data.get(user_id, {}).get("last_message_time", 0)
-    current_time = time.time()
-
-    # Si no ha pasado 1 minuto desde el último mensaje
-    if current_time - last_message_time < 60:
-        remaining_time = 60 - (current_time - last_message_time)
-        await update.message.reply_text(f"⚠️ Por favor, espera {int(remaining_time)} segundos antes de enviar otro reporte.")
-        return
-
-    # Actualizar el tiempo del último mensaje
-    context.user_data[user_id] = context.user_data.get(user_id, {})
-    context.user_data[user_id]["last_message_time"] = current_time
-
     # Verificar si el mensaje es un reporte válido
     reporte = analizar_reporte(user_message)
     if not reporte:
-        print("⚠️ No se pudo clasificar el mensaje.")
         await update.message.reply_text("⚠️ No he podido entender tu solicitud.")
         return
 
@@ -476,55 +380,73 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
     categoria = reporte["categoria"]
     subcategoria = reporte["subcategoria"]
 
-    # Validar contra los diccionarios de categorías
-    if tipo_reporte == "aviso":
-        if categoria not in AVISOS or subcategoria not in AVISOS[categoria]:
-            print(f"⚠️ Reporte inválido: {reporte}")
-            await update.message.reply_text("⚠️ No he podido entender tu solicitud.")
-            return
-    elif tipo_reporte == "petición":
-        if categoria not in PETICIONES or subcategoria not in PETICIONES[categoria]:
-            print(f"⚠️ Reporte inválido: {reporte}")
-            await update.message.reply_text("⚠️ No he podido entender tu solicitud.")
-            return
-    else:
-        print("⚠️ Tipo de reporte desconocido.")
-        await update.message.reply_text("⚠️ No he podido entender tu solicitud.")
-        return
+    # Guardar la información en context.user_data
+    context.user_data["tipo_reporte"] = tipo_reporte
+    context.user_data["categoria"] = categoria
+    context.user_data["subcategoria"] = subcategoria
+    context.user_data["user_message"] = user_message  # Guardar el mensaje también
 
-    # Analizar la direcciónn
-    direccion = analizar_direccion(user_message)
-    print(f"Dirección extraída: {direccion}")
-    if not direccion:
-        print("⚠️ Dirección no válida. Abortando reporte.")
-        await update.message.reply_text("⚠️ No he podido entender tu solicitud.")
-        return
-
-    respuesta = (
-        f"📋 Reporte clasificado:\n"
-        f"👤 Usuario: `{user_id}`\n"
-        f"📌 Tipo: {tipo_reporte.capitalize()}\n"
-        f"📂 Categoría: {categoria}\n"
-        f"🔖 Subcategoría: {subcategoria}\n"
-        f"🗺️ Dirección: {direccion}\n"
-        f"💬 Descripción: {user_message}"
+    # Solicitar la ubicación
+    await update.message.reply_text(
+        "Por favor, comparte tu ubicación en tiempo real para continuar con el reporte.",
+        reply_markup=ReplyKeyboardMarkup(
+            [[KeyboardButton("📍 Compartir ubicación", request_location=True)]],
+            one_time_keyboard=True
+        )
     )
+    return UBICACION
 
-    await update.message.reply_text(respuesta, parse_mode="Markdown")
+# Función para manejar la ubicación recibida
+async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
 
-    # Enviar el reporte al grupo de Telegram
-    await context.bot.send_message(
-        chat_id=TELEGRAM_GROUP_ID,
-        text=respuesta
-    )
+    # Acceder a los datos almacenados en context.user_data
+    tipo_reporte = context.user_data.get("tipo_reporte")
+    categoria = context.user_data.get("categoria")
+    subcategoria = context.user_data.get("subcategoria")
+    user_message = context.user_data.get("user_message")  # Obtener el mensaje del usuario
+
+    # Obtener la ubicación
+    location = update.message.location
+    if location:
+        latitude = location.latitude
+        longitude = location.longitude
+        cordenadas_ubicacion = f"Lat: {latitude}, Long: {longitude}"
+
+        respuesta = (
+            f"📋 Reporte clasificado:\n"
+            f"👤 Usuario: `{user_id}`\n"
+            f"📌 Tipo: {tipo_reporte.capitalize()}\n"
+            f"📂 Categoría: {categoria}\n"
+            f"🔖 Subcategoría: {subcategoria}\n"
+            f"🗺️ Dirección: {cordenadas_ubicacion}\n"
+            f"💬 Descripción: {user_message}"
+        )
+
+        await update.message.reply_text(respuesta, parse_mode="Markdown")
+        await context.bot.send_message(
+            chat_id=TELEGRAM_GROUP_ID,
+            text=respuesta
+        )
+    return ConversationHandler.END
 
 #-----------------------------MANEJADORES DEL BOT-----------------------------------------------
 
 # Este código configura y ejecuta el bot de Telegram, añadiendo manejadores para los comandos y mensajes, 
 # y luego inicia el bot en modo "polling" para que empiece a recibir y responder a las interacciones de los usuarios.
+
+conv_handler = ConversationHandler(
+    entry_points=[CommandHandler("ayuda", ayuda)],
+    states={
+        UBICACION: [MessageHandler(filters.LOCATION, recibir_ubicacion)]
+    },
+    fallbacks=[]
+)
+
 if __name__ == '__main__':
     application = ApplicationBuilder().token(CURAIME_BOT_KEY).build()
-    
+
+    application.add_handler(conv_handler)
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("verificar", verificar))
     application.add_handler(CommandHandler("contacto", contacto))
@@ -532,8 +454,7 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler("comandos", comandos))
     application.add_handler(CommandHandler("modificar", modificar))
     application.add_handler(CommandHandler("datos", datos))
-    application.add_handler(CommandHandler("ayuda", ayuda))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, recibir_datos))
 
-    print("✅ El bot está en ejecución. Envía un mensaje en Telegram para probarlo.")
+    print("✅ El bot está en ejecución.")
     application.run_polling()
