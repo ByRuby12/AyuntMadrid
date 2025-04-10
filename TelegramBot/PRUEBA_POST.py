@@ -336,7 +336,7 @@ def analizar_reporte(mensaje):
             elif tipo_reporte == "petición":
                 print(f"╠――――Tipo de reporte: {tipo_reporte}, Categoría: {categoria}, Subcategoría: {subcategoria}")
                 if categoria in PETICIONES and subcategoria in PETICIONES[categoria]:
-                    print(f"╠――――Reporte clasificado correctamente como petición.")
+                    print(f"╚――――Reporte clasificado correctamente como petición.")
                     return data
                 else:
                     # Intentar asignar la categoría y subcategoría correcta para las peticiones
