@@ -336,7 +336,7 @@ def analizar_reporte(mensaje):
             elif tipo_reporte == "petición":
                 print(f"╠――――Tipo de reporte: {tipo_reporte}, Categoría: {categoria}, Subcategoría: {subcategoria}")
                 if categoria in PETICIONES and subcategoria in PETICIONES[categoria]:
-                    print(f"╚――――Reporte clasificado correctamente como petición.")
+                    print(f"╠――――Reporte clasificado correctamente como petición.")
                     return data
                 else:
                     # Intentar asignar la categoría y subcategoría correcta para las peticiones
@@ -385,8 +385,22 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• Plaza Mayor 1, Madrid\n\n",
             parse_mode="Markdown"
         )
-
         return
+
+    # Verificar si el usuario ha enviado un mensaje recientemente (esperar 2 minutos entre mensajes)
+    last_message_time = context.user_data.get(user_id, {}).get("last_message_time", 0)
+    current_time = time.time()
+
+    # Si no ha pasado 2 minutos desde el último mensaje
+    if current_time - last_message_time < 120:
+        remaining_time = 120 - (current_time - last_message_time)
+        await update.message.reply_text(f"⚠️ Por favor, espera {int(remaining_time)} segundos antes de enviar otro reporte.")
+        return
+
+    # Actualizar el tiempo del último mensaje
+    if user_id not in context.user_data:
+        context.user_data[user_id] = {}
+    context.user_data[user_id]["last_message_time"] = current_time
 
     # Verificar si el mensaje es un reporte válido
     reporte = analizar_reporte(user_message)
@@ -520,7 +534,8 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         response = requests.post(url, headers=headers, json=payload)
         
-        print(f"Respuesta del servidor: {response.text}")
+        print(f"╠――――Respuesta del servidor: {response.text}")
+        print(f"╚―――――――――――――――――――――――――――――――――――――")
 
         # Enviar el mensaje de confirmación al usuario en Telegram
         await update.message.reply_text(f"✅Tu reporte ha sido enviado correctamente a la Plataforma del Ayuntamiento de Madrid")
