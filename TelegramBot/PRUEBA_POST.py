@@ -527,7 +527,7 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         headers = {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer 1234123412341234'
+            'Authorization': 'Bearer 123412341234'
         }
 
         url = "https://servpubpre.madrid.es/AVSICAPIINT/requests?jurisdiction_id=es.madrid&return_data=false"
@@ -536,6 +536,22 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         print(f"╔――――Respuesta del servidor: {response.text}")
         print(f"╚―――――――――――――――――――――――――――――――――――――")
+
+        respuesta = (
+            f"📋 Reporte clasificado:\n"
+            f"👤 Usuario: `{user_id}`\n"
+            f"📌 Tipo: {tipo_reporte.capitalize()}\n"
+            f"📂 Categoría: {categoria}\n"
+            f"🔖 Subcategoría: {subcategoria}\n"
+            f"🗺️ Dirección: {latitude} {longitude}\n"
+            f"💬 Descripción: {user_message}"
+        )
+
+        await update.message.reply_text(respuesta, parse_mode="Markdown")
+        await context.bot.send_message(
+            chat_id=TELEGRAM_GROUP_ID,
+            text=respuesta
+        )
 
         # Enviar el mensaje de confirmación al usuario en Telegram
         await update.message.reply_text(f"✅Tu reporte ha sido enviado correctamente a la Plataforma del Ayuntamiento de Madrid")
