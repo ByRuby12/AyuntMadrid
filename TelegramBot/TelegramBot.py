@@ -303,11 +303,15 @@ def analizar_reporte(mensaje):
     # 📌 Extraer los datos de la respuesta
     result = response.get("choices", [{}])[0].get("message", {}).get("function_call", {}).get("arguments", "{}")
 
+    print(f"╔―――――――――――――――――――――――――――――――――――――")
+    print(f"╠――――Respuesta de la IA: {result}")
+    
     if result:
         result = result.replace("true", "True").replace("false", "False")
         try:
             # Convertir la respuesta a formato JSON
             data = json.loads(result)
+            print(f"╠――――Datos procesados: {data}")
 
             tipo_reporte = data.get("tipo_reporte")
             categoria = data.get("categoria")
@@ -315,26 +319,40 @@ def analizar_reporte(mensaje):
 
             # Verificar si la categoría y subcategoría están en los diccionarios
             if tipo_reporte == "aviso":
+                print(f"╠――――Tipo de reporte: {tipo_reporte}, Categoría: {categoria}, Subcategoría: {subcategoria}")
                 if categoria in AVISOS and subcategoria in AVISOS[categoria]:
+                    print(f"╚――――Reporte clasificado correctamente como aviso.")
                     return data
                 else:
+                    # Intentar asignar la categoría y subcategoría correcta
+                    print(f"╠――――Categoría o subcategoría no válida: {categoria} / {subcategoria}")
                     for cat, subcats in AVISOS.items():
                         if any(subcat.lower() in mensaje.lower() for subcat in subcats):
+                            print(f"Asignando categoría: {cat} y subcategoría: {subcats[0]}")
                             return {"tipo_reporte": "aviso", "categoria": cat, "subcategoria": subcats[0]}
 
             elif tipo_reporte == "petición":
+                print(f"╠――――Tipo de reporte: {tipo_reporte}, Categoría: {categoria}, Subcategoría: {subcategoria}")
                 if categoria in PETICIONES and subcategoria in PETICIONES[categoria]:
+                    print(f"╚――――Reporte clasificado correctamente como petición.")
                     return data
                 else:
+                    # Intentar asignar la categoría y subcategoría correcta para las peticiones
+                    print(f"╠――――Categoría o subcategoría no válida para petición: {categoria} / {subcategoria}")
                     for cat, subcats in PETICIONES.items():
                         if any(subcat.lower() in mensaje.lower() for subcat in subcats):
+                            print(f"╠――――Asignando categoría: {cat} y subcategoría: {subcats[0]}")
+                            print(f"╚―――――――――――――――――――――――――――――――――――――")
                             return {"tipo_reporte": "petición", "categoria": cat, "subcategoria": subcats[0]}
 
+            print(f"⚠️ Categoría o subcategoría inválida. Rechazando el resultado⚠️")
             return None
 
         except json.JSONDecodeError as e:
+            print(f"Error al procesar JSON: {e}")
             return None
 
+    print(f"No se recibió una respuesta válida del modelo.")
     return None
 
 # Función para manejar el comando /ayuda
