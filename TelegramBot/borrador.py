@@ -493,3 +493,116 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 #------------------------------------------------------------------------------------------------
+
+AVISOS = {
+    "Alumbrado Público": [
+        "Calle Apagada",
+        "Calle Apagada v2",
+        "Calle Apagada v4",
+        "Farola Apagada",
+        "Luces de Navidad",
+        "Otras Averías de Alumbrado"
+    ],
+    "Aparcamiento Regulado": [
+        "Aplicación Móvil",
+        "Aviso de Denuncia",
+        "No Imprime tique o no valida Pin",
+        "No permite anulación de denuncia",
+        "Parquímetro",
+        "Tarjeta Crédito atascada"
+    ],
+    "Arboles y Parques": [
+        "Árbol en mal estado",
+        "Caminos no pavimentados",
+        "Incidencias de riesgo",
+        "Incidencias en alcorque o hueco",
+        "Plagas",
+        "Poda de Árbol",
+        "Quitar maleza",
+        "Sustitución de Árbol"
+    ],
+    "Áreas Infantiles, Áreas de Mayores y circuitos": [
+        "Área de Mayores y circuitos",
+        "Área Infantil"
+    ],
+    "Calzadas y Aceras": [
+        "Alcantarillado",
+        "Desperfecto en acera",
+        "Desperfecto en calzada",
+        "Hidrantes de bomberos",
+        "Otras incidencias en calzadas y aceras",
+        "Tapas de registro",
+        "Tapa de Agua Isabel II"
+    ],
+    "Cubos y Contenedores": [
+        "Cambio de tamaño de cubo",
+        "Cambio de ubicación de cubo o contenedor",
+        "Cubo o contenedor abandonado",
+        "Cubo o contenedor en mal estado",
+        "Horquillas delimitadoras",
+        "Nuevo cubo o contenedor",
+        "Vaciado de aceite",
+        "Vaciado de cubo o contenedor"
+    ],
+    "Fuentes": [
+        "Incidencias en fuentes de Beber",
+        "Incidencias en fuentes ornamentales"
+    ],
+    "Limpiezas y Pintadas": [
+        "Limpieza en solares municipales",
+        "Limpieza en vías públicas",
+        "Limpieza mobiliario urbano o áreas infantiles",
+        "Limpieza en zonas verdes",
+        "Pintadas y Grafitis",
+        "SELUR"
+    ],
+    "Mobiliario Urbano": [
+        "Banco",
+        "Bolardo u horquilla",
+        "Otros",
+        "Vallas"
+    ],
+    "Papeleras": [
+        "Falta de bolsas para excrementos caninos",
+        "Mal estado de papelera",
+        "Nueva Instalación de Papelera",
+        "Vaciado de Papelera"
+    ],
+    "Plagas": [
+        "Ratas y Cucarachas"
+    ],
+    "Retirada de Elementos": [
+        "Animales muertos",
+        "Contenedor de ropa no autorizada",
+        "Muebles abandonados en vía pública",
+        "Muebles Particulares",
+        "Recogida de saco o contenedor de escombros"
+    ],
+    "Señales y Semáforos": [
+        "Incidencia en avisador acústico de semáforo",
+        "Incidencia en Pulsador",
+        "Incidencia en Señal",
+        "Semáforo Apagado"
+    ],
+    "Vehículos Abandonados. Retirada de vehículo": [
+        "Vehículos Abandonados. Retirada de vehículo"
+    ]
+}
+
+PETICIONES = {
+    "Áreas Infantiles, Áreas de Mayores y circuitos": [
+        "Nueva Instalación"
+    ],
+    "Calzadas y Aceras": [
+        "Mejora de Accesibilidad"
+    ],
+    "Fuentes": [
+        "Nueva Instalación de fuente de beber"
+    ],
+    "Mobiliario Urbano": [
+        "Nueva Instalación"
+    ],
+    "Señales y Semáforos": [
+        "Nueva Señal"
+    ]
+}

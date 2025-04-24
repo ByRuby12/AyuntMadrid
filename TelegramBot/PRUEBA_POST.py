@@ -1,6 +1,6 @@
 # -----------------------IMPORT LIBRERIAS---------------------------
 
-from diccionarios import AVISOS, PETICIONES
+from diccionarios import AVISOS_PRUEBA, PETICIONES_PRUEBA
 from claves import OPENAI_API_KEY, CURAIME_BOT_KEY
 
 import nest_asyncio
@@ -43,10 +43,10 @@ system_content_prompt = (
     "Aquí tienes el listado completo de categorías y subcategorías válidas:\n\n"
 
     f"Categorías y subcategorías para AVISOS:\n"
-    f"{json.dumps(AVISOS, indent=2, ensure_ascii=False)}\n\n"
+    f"{json.dumps(AVISOS_PRUEBA, indent=2, ensure_ascii=False)}\n\n"
 
     f"Categorías y subcategorías para PETICIONES:\n"
-    f"{json.dumps(PETICIONES, indent=2, ensure_ascii=False)}\n\n"
+    f"{json.dumps(PETICIONES_PRUEBA, indent=2, ensure_ascii=False)}\n\n"
 
     "🔍 IMPORTANTE:\n"
     "- Aunque el mensaje del usuario no coincida exactamente con las palabras del diccionario, intenta identificar sinónimos o frases similares.\n"
@@ -293,9 +293,10 @@ def analizar_reporte(mensaje):
                     "properties": {
                         "tipo_reporte": {"type": "string", "enum": ["aviso", "petición"]},
                         "categoria": {"type": "string"},
-                        "subcategoria": {"type": "string"}
+                        "subcategoria": {"type": "string"},
+                        "id_subcategoria": {"type": "array", "items": {"type": "string"}}
                     },
-                    "required": ["tipo_reporte", "categoria", "subcategoria"]
+                    "required": ["tipo_reporte", "categoria", "subcategoria", "id_subcategoria"]
                 }
             }
         ],
@@ -322,30 +323,53 @@ def analizar_reporte(mensaje):
             # Verificar si la categoría y subcategoría están en los diccionarios
             if tipo_reporte == "aviso":
                 print(f"╠――――Tipo de reporte: {tipo_reporte}, Categoría: {categoria}, Subcategoría: {subcategoria}")
-                if categoria in AVISOS and subcategoria in AVISOS[categoria]:
-                    print(f"╚――――Reporte clasificado correctamente como aviso.")
-                    return data
-                else:
+                if categoria in AVISOS_PRUEBA:
+                    for sub in AVISOS_PRUEBA[categoria]:
+                        if sub["nombre"].lower() == subcategoria.lower():
+                            print(f"╚――――Reporte clasificado correctamente como aviso.")
+                            return {
+                                "tipo_reporte": "aviso",
+                                "categoria": categoria,
+                                "subcategoria": subcategoria,
+                                "id_subcategoria": sub["id"]
+                            }
                     # Intentar asignar la categoría y subcategoría correcta
                     print(f"╠――――Categoría o subcategoría no válida: {categoria} / {subcategoria}")
-                    for cat, subcats in AVISOS.items():
-                        if any(subcat.lower() in mensaje.lower() for subcat in subcats):
-                            print(f"Asignando categoría: {cat} y subcategoría: {subcats[0]}")
-                            return {"tipo_reporte": "aviso", "categoria": cat, "subcategoria": subcats[0]}
+                    for cat, subcats in AVISOS_PRUEBA.items():
+                        for sub in subcats:
+                            if sub["nombre"].lower() in mensaje.lower():
+                                print(f"Asignando categoría: {cat} y subcategoría: {sub['nombre']}")
+                                return {
+                                    "tipo_reporte": "aviso",
+                                    "categoria": cat,
+                                    "subcategoria": sub['nombre'],
+                                    "id_subcategoria": sub["id"]
+                                }
 
             elif tipo_reporte == "petición":
                 print(f"╠――――Tipo de reporte: {tipo_reporte}, Categoría: {categoria}, Subcategoría: {subcategoria}")
-                if categoria in PETICIONES and subcategoria in PETICIONES[categoria]:
-                    print(f"╚――――Reporte clasificado correctamente como petición.")
-                    return data
-                else:
-                    # Intentar asignar la categoría y subcategoría correcta para las peticiones
+                if categoria in PETICIONES_PRUEBA:
+                    for sub in PETICIONES_PRUEBA[categoria]:
+                        if sub["nombre"].lower() == subcategoria.lower():
+                            print(f"╚――――Reporte clasificado correctamente como petición.")
+                            return {
+                                "tipo_reporte": "petición",
+                                "categoria": categoria,
+                                "subcategoria": subcategoria,
+                                "id_subcategoria": sub["id"]
+                            }
+                    # Intentar asignar la categoría y subcategoría correcta
                     print(f"╠――――Categoría o subcategoría no válida para petición: {categoria} / {subcategoria}")
-                    for cat, subcats in PETICIONES.items():
-                        if any(subcat.lower() in mensaje.lower() for subcat in subcats):
-                            print(f"╠――――Asignando categoría: {cat} y subcategoría: {subcats[0]}")
-                            print(f"╚―――――――――――――――――――――――――――――――――――――")
-                            return {"tipo_reporte": "petición", "categoria": cat, "subcategoria": subcats[0]}
+                    for cat, subcats in PETICIONES_PRUEBA.items():
+                        for sub in subcats:
+                            if sub["nombre"].lower() in mensaje.lower():
+                                print(f"╠――――Asignando categoría: {cat} y subcategoría: {sub['nombre']}")
+                                return {
+                                    "tipo_reporte": "petición",
+                                    "categoria": cat,
+                                    "subcategoria": sub['nombre'],
+                                    "id_subcategoria": sub["id"]
+                                }
 
             print(f"⚠️ Categoría o subcategoría inválida. Rechazando el resultado⚠️")
             return None
@@ -411,11 +435,13 @@ async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tipo_reporte = reporte["tipo_reporte"]
     categoria = reporte["categoria"]
     subcategoria = reporte["subcategoria"]
+    id_subcategoria = reporte["id_subcategoria"]  # Obtener las IDs de la subcategoría
 
     # Guardar la información en context.user_data
     context.user_data["tipo_reporte"] = tipo_reporte
     context.user_data["categoria"] = categoria
     context.user_data["subcategoria"] = subcategoria
+    context.user_data["id_subcategoria"] = id_subcategoria  # Guardar la ID de la subcategoría
     context.user_data["user_message"] = user_message  # Guardar el mensaje también
 
     # Solicitar la ubicación
@@ -437,6 +463,7 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tipo_reporte = context.user_data.get("tipo_reporte")
     categoria = context.user_data.get("categoria")
     subcategoria = context.user_data.get("subcategoria")
+    id_subcategoria = context.user_data.get("id_subcategoria")  # Obtener la ID de la subcategoría
     user_message = context.user_data.get("user_message")  # Obtener el mensaje del usuario
 
     # Obtener la ubicación
@@ -447,75 +474,75 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Crear el payload para el POST
         payload = {
-            "service_id": "591b36544e4ea839018b4653",  # id subcategoria
+            "service_id": "591b36544e4ea839018b4653",  # Usar la ID de la subcategoría
             "description": user_message,  # Descripción
             "position": {
                 "lat": latitude,  # latitud
                 "lng": longitude,  # longitud
                 "location_additional_data": [
                     {
-                        "question": "5e49c26b6d4af6ac018b4623", # TIPO DE VIA
+                        "question": "5e49c26b6d4af6ac018b4623",  # TIPO DE VIA
                         "value": "Avenida"
                     },
                     {
-                        "question": "5e49c26b6d4af6ac018b4624", # NOMBRE DE VIA 
+                        "question": "5e49c26b6d4af6ac018b4624",  # NOMBRE DE VIA 
                         "value": "Brasil"
                     },
                     {
-                        "question": "5e49c26b6d4af6ac018b4625", # NUMERO DE VIA
+                        "question": "5e49c26b6d4af6ac018b4625",  # NUMERO DE VIA
                         "value": "5"
                     },
                     {
-                        "question": "5e49c26b6d4af6ac018b4627", # CODIGO POSTAL
+                        "question": "5e49c26b6d4af6ac018b4627",  # CODIGO POSTAL
                         "value": 28020
                     },
                     {
-                        "question": "5e49c26b6d4af6ac018b4628", # NOMBRE DEL BARRIO
+                        "question": "5e49c26b6d4af6ac018b4628",  # NOMBRE DEL BARRIO
                         "value": "Cuatro Caminos"
                     },
                     {
-                        "question": "5e49c26b6d4af6ac018b4629", # NOMBRE DISTRITO
+                        "question": "5e49c26b6d4af6ac018b4629",  # NOMBRE DISTRITO
                         "value": "Tetuan"
                     },
                     {
-                        "question": "5e49c26b6d4af6ac018b462a", # CODIGO DEL DISTRITO
+                        "question": "5e49c26b6d4af6ac018b462a",  # CODIGO DEL DISTRITO
                         "value": 6
                     },
                     {
-                        "question": "5e49c26b6d4af6ac018b462b", # CODIGO DEL BARRIO
+                        "question": "5e49c26b6d4af6ac018b462b",  # CODIGO DEL BARRIO
                         "value": 2
                     },
                     {
-                        "question": "5e49c26b6d4af6ac018b462d", # COORDENADA DE X DEL NDP
+                        "question": "5e49c26b6d4af6ac018b462d",  # COORDENADA DE X DEL NDP
                         "value": 441155.2
                     },
                     {
-                        "question": "5e49c26b6d4af6ac018b462e", # Coordenada Y del NDP
+                        "question": "5e49c26b6d4af6ac018b462e",  # Coordenada Y del NDP
                         "value": 4478434.5
                     },
                     {
-                        "question": "5e49c26b6d4af6ac018b4633", # Id ndp
+                        "question": "5e49c26b6d4af6ac018b4633",  # Id ndp
                         "value": 20011240
                     },
                     {
-                        "question": "5e49c26b6d4af6ac018b462f", # Coordenada X del reporte
+                        "question": "5e49c26b6d4af6ac018b462f",  # Coordenada X del reporte
                         "value": 441182.22
                     },
                     {
-                        "question": "5e49c26b6d4af6ac018b4630", # Coordenada Y del reporte
+                        "question": "5e49c26b6d4af6ac018b4630",  # Coordenada Y del reporte
                         "value": 4478435.6
                     },
                     {
-                        "question": "5e49c26b6d4af6ac018b4632", # Id de la via
+                        "question": "5e49c26b6d4af6ac018b4632",  # Id de la via
                         "value": 114200
                     },
                     {
-                        "question": "5e49c26b6d4af6ac018b4631", # orientación
+                        "question": "5e49c26b6d4af6ac018b4631",  # orientación
                         "value": "Oeste"
                     }
                 ]
             },
-            "address_string": "Calle Mayor, 12",
+            "address_string": "Calle Mayor, 12",  # Dirección de ejemplo
             "device_type": "5922cfab4e4ea823178b4568",  # Optional
             "additionalData": [
                 {
@@ -527,7 +554,7 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         headers = {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer 123412341234'
+            'Authorization': 'Bearer 123123'
         }
 
         url = "https://servpubpre.madrid.es/AVSICAPIINT/requests?jurisdiction_id=es.madrid&return_data=false"
@@ -549,6 +576,7 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"📌 Tipo: {tipo_reporte.capitalize()}\n"
         f"📂 Categoría: {categoria}\n"
         f"🔖 Subcategoría: {subcategoria}\n"
+        f"🔖 ID Subcategoria: `{id_subcategoria}`\n"
         f"🗺️ Dirección: {latitude} {longitude}\n"
         f"💬 Descripción: {user_message}\n"
     )
