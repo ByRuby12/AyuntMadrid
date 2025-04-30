@@ -71,7 +71,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🔹 Usa los siguientes comandos principales:\n\n"
             "✅ /verificar - Registrar tus datos personales para reportar avisos.\n"
             "✅ /ayuda - Reporta una emergencia.\n"
-            "✅ /asistente - Informa de lo que se debería de hacer en X caso.\n"
             "✅ /contacto - Ver los números de emergencia en España.\n"
             "✅ /datos - Ver los datos que has registrado.\n\n"
             "🔸 Para ver todos los comandos disponibles, usa: /comandos"
@@ -99,8 +98,7 @@ async def como_usar(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "3️⃣ Consulta los números de emergencia con `/contacto`.\n"
             "4️⃣ Usa `/datos` para ver los datos que has registrado.\n"
             "5️⃣ Usa `/modificar` para modificar los datos que has registrado.\n"
-            "6️⃣ Usa `/asistente [incidente]` para obtener recomendaciones sobre qué hacer en una situación de emergencia.\n"
-            "7️⃣ Usa `/informacion` si tienes dudas.\n"
+            "6️⃣ Usa `/informacion` si tienes dudas.\n"
         )
     
     await update.message.reply_text(help_text, parse_mode="Markdown")
@@ -114,7 +112,6 @@ async def comandos(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "✅ /start - Muestra el menú de opciones.\n"
         "✅ /verificar - Registra tus datos personales.\n"
         "✅ /ayuda - Reporta una emergencia.\n"
-        "✅ /asistente - Informa de lo que se debería de hacer en X caso.\n"
         "✅ /contacto - Muestra los números de emergencia.\n"
         "✅ /datos - Ver los datos que has registrado.\n"
         "✅ /modificar - Modificar los datos que has registrado.\n"
@@ -554,7 +551,7 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         headers = {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer 123123'
+            'Authorization': 'Bearer 123123123'
         }
 
         url = "https://servpubpre.madrid.es/AVSICAPIINT/requests?jurisdiction_id=es.madrid&return_data=false"
