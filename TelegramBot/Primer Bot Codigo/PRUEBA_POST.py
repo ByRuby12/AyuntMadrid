@@ -60,6 +60,217 @@ messages_to_send = [{"role": "system", "content": system_content_prompt}]
 
 #-----------------------------FUNCIONES DEL BOT-----------------------------------------------
 
+# start(update, context): Muestra el mensaje de bienvenida del bot con una lista 
+# de los comandos principales disponibles para el usuario, explicando qué hace cada uno. 
+# Si ocurre un error, muestra un mensaje de error.
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Muestra los comandos disponibles de manera organizada."""
+    try:
+        start_message = ( 
+            "⚠️ *Bienvenido al Bot de Avisos de Emergencia.*\n\n"
+            "🔹 Usa los siguientes comandos principales:\n\n"
+            "✅ /verificar - Registrar tus datos personales para reportar avisos.\n"
+            "✅ /ayuda - Reporta una emergencia.\n"
+            "✅ /contacto - Ver los números de emergencia en España.\n"
+            "✅ /datos - Ver los datos que has registrado.\n\n"
+            "🔸 Para ver todos los comandos disponibles, usa: /comandos"
+        )
+
+        await update.message.reply_text(start_message, parse_mode="Markdown")
+    except Exception as e:
+        print(f"Error en /start: {e}")
+        await update.message.reply_text("❌ Ha ocurrido un error al mostrar el menú.")
+
+# como_usar(update, context): Proporciona una explicación detallada sobre cómo utilizar 
+# el bot, paso a paso. Incluye instrucciones sobre cómo verificar datos, reportar emergencias, 
+# compartir ubicación, enviar fotos/videos, y consultar información relevante como números de emergencia.
+async def como_usar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Explica detalladamente cómo usar el bot paso a paso, incluyendo la verificación obligatoria y el envío de fotos/videos."""
+    help_text = (
+            "⚠️ *Bienvenido al Bot de Avisos de Emergencia* ⚠️\n\n"
+            "Este bot está diseñado para proporcionar información en tiempo real sobre emergencias "
+            "y alertas importantes en tu zona. Puedes reportar incidentes, recibir avisos de seguridad "
+            "y consultar números de emergencia.\n\n"
+            
+            "🔹 *¿Cómo funciona?*\n"
+            "1️⃣ Usa `/verificar` para registrar tus datos antes de enviar un aviso.\n"
+            "2️⃣ Usa `/ayuda [descripción]` para reportar una emergencia.\n"
+            "3️⃣ Consulta los números de emergencia con `/contacto`.\n"
+            "4️⃣ Usa `/datos` para ver los datos que has registrado.\n"
+            "5️⃣ Usa `/modificar` para modificar los datos que has registrado.\n"
+            "6️⃣ Usa `/informacion` si tienes dudas.\n"
+        )
+    
+    await update.message.reply_text(help_text, parse_mode="Markdown")
+
+# comandos(update, context): Muestra los comandos disponibles para el usuario, 
+# listando todas las acciones que el bot puede realizar.
+async def comandos(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Muestra los comandos disponibles para el usuario."""
+    command_text = (
+        "📜 *Comandos Disponibles:*\n\n"
+        "✅ /start - Muestra el menú de opciones.\n"
+        "✅ /verificar - Registra tus datos personales.\n"
+        "✅ /ayuda - Reporta una emergencia.\n"
+        "✅ /contacto - Muestra los números de emergencia.\n"
+        "✅ /datos - Ver los datos que has registrado.\n"
+        "✅ /modificar - Modificar los datos que has registrado.\n"
+        "✅ /comandos - Muestra todos los comandos disponibles.\n"
+        "✅ /informacion - Explicación sobre cómo usar el bot.\n\n"
+
+        "📧 *Soporte técnico:* contacto@empresa.com\n"
+        "📞 *Teléfono de atención:* +34 600 123 456"
+    )
+
+    await update.message.reply_text(command_text, parse_mode="Markdown")
+
+# verificar(update, context) Solicita los datos personales del usuario 
+# (nombre, correo y teléfono) para registrar y verificar su identidad antes 
+# de que pueda hacer reportes.
+async def verificar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Solicita los datos personales antes de permitir enviar un aviso."""
+    user_id = update.message.from_user.id
+
+    # Verifica si el usuario ya envió sus datos
+    if user_id in context.user_data and "datos_verificados" in context.user_data[user_id]:
+        await update.message.reply_text("✅ Ya has verificado tus datos. Puedes enviar avisos.")
+        return
+
+    await update.message.reply_text(
+        "📝 *Verificación de identidad requerida.*\n\n"
+        "Por favor, envía los siguientes datos en un solo mensaje:\n"
+        "1️⃣ Nombre completo\n"
+        "2️⃣ Correo electrónico\n"
+        "3️⃣ Número de teléfono\n\n"
+        "Ejemplo:\n"
+        "`Juan Pérez Gómez, juan.perez@email.com, 698767665`",
+        parse_mode="Markdown"
+    )
+
+    # Marca al usuario como pendiente de verificación
+    context.user_data[user_id] = {"verificacion_pendiente": True}
+
+# recibir_datos(update, context): Recibe los datos personales enviados por 
+# el usuario, valida su formato (nombre, correo y teléfono) y los guarda si 
+# son correctos. Informa al usuario si hay errores de formato.
+async def recibir_datos(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Recibe y valida los datos personales enviados por el usuario."""
+    user_id = update.message.from_user.id
+
+    if user_id not in context.user_data or "verificacion_pendiente" not in context.user_data[user_id]:
+        return  # Ignorar si el usuario no está en proceso de verificación
+
+    datos = update.message.text.strip()
+    partes = datos.split(",")
+
+    if len(partes) != 3:
+        await update.message.reply_text("❌ Formato incorrecto. Envía los datos como en el ejemplo.")
+        return
+
+    nombre, correo, telefono = map(str.strip, partes)
+
+    # Validar datos básicos
+    if not re.match(r"^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$", nombre):
+        await update.message.reply_text("❌ Nombre inválido. Debe contener solo letras y espacios.")
+        return
+    if not re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", correo):
+        await update.message.reply_text("❌ Correo electrónico inválido. Usa un formato válido como `correo@dominio.com`.")
+        return
+    if not re.match(r"^\+?\d{9,15}$", telefono):
+        await update.message.reply_text("❌ Teléfono inválido. Usa un formato válido como +34 600123456.")
+        return
+
+    # Guardar datos en el usuario
+    context.user_data[user_id] = {
+        "nombre": nombre,
+        "correo": correo,
+        "telefono": telefono,
+        "datos_verificados": True
+    }
+
+    print("―――――――――――――――――――――――――――――――――――――")
+    print("✅ Datos del usuario guardados:")
+    print(f"👤 Nombre: {nombre}")
+    print(f"📧 Correo: {correo}")
+    print(f"📞 Teléfono: {telefono}")
+    print("―――――――――――――――――――――――――――――――――――――")
+
+    await update.message.reply_text("✅ Datos verificados. Ahora puedes enviar reportes con /ayuda.")
+
+# modificar(update, context): Permite al usuario modificar los datos verificados 
+# en caso de haber cometido un error. Inicia de nuevo el proceso de verificación.
+async def modificar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Permite al usuario modificar sus datos si se ha equivocado."""
+    user_id = update.message.from_user.id
+
+    # Verifica si el usuario ya ha verificado sus datos
+    if user_id not in context.user_data or "datos_verificados" not in context.user_data[user_id]:
+        await update.message.reply_text("❌ No tienes datos verificados. Usa /verificar primero.")
+        return
+
+    # Elimina los datos anteriores para permitir la reingresión
+    del context.user_data[user_id]["nombre"]
+    del context.user_data[user_id]["correo"]
+    del context.user_data[user_id]["telefono"]
+    del context.user_data[user_id]["datos_verificados"]
+
+    # Inicia el proceso de verificación de nuevo
+    await update.message.reply_text(
+        "📝 Modificación de datos\n\n"
+        "Por favor, ingresa de nuevo los siguientes datos en un solo mensaje:\n"
+        "1️⃣ Nombre completo\n"
+        "2️⃣ Correo electrónico\n"
+        "3️⃣ Número de teléfono\n\n"
+        "Ejemplo:\n"
+        "`Juan Pérez Gómez, juan.perez@email.com, 698767665`",
+        parse_mode="Markdown"
+    )
+
+    # Marca al usuario como pendiente de nueva verificación
+    context.user_data[user_id] = {"verificacion_pendiente": True}
+
+# datos(update, context): Muestra los datos verificados del usuario si ya los 
+# ha registrado. Si no están verificados, solicita que el usuario use el comando /verificar.
+async def datos(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Muestra los datos verificados del usuario."""
+    user_id = update.message.from_user.id
+    
+    # Verifica si el usuario tiene datos verificados
+    if user_id not in context.user_data or "datos_verificados" not in context.user_data[user_id]:
+        await update.message.reply_text("❌ Aún no has verificado tus datos. Usa /verificar para ingresarlos.")
+        return
+    
+    # Recupera los datos del usuario
+    nombre = context.user_data[user_id].get("nombre", "No disponible")
+    correo = context.user_data[user_id].get("correo", "No disponible")
+    telefono = context.user_data[user_id].get("telefono", "No disponible")
+    
+    # Envía los datos al usuario
+    await update.message.reply_text(
+        f"📊 Tus datos verificados son:\n\n"
+        f"1️⃣ Nombre completo: {nombre}\n"
+        f"2️⃣ Correo electrónico: {correo}\n"
+        f"3️⃣ Número de teléfono: {telefono}"
+    )
+
+# contacto(update, context): Muestra los números de emergencia más importantes en España 
+# (como el 112 para emergencias generales, 091 para policía, etc.).
+async def contacto(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Muestra los números de emergencia en España."""
+    emergency_numbers = (
+        "📞 *Números de Emergencia en España:*\n\n"
+        "🚑 Emergencias generales: *112*\n"
+        "🚔 Policía Nacional: *091*\n"
+        "👮‍♂️ Guardia Civil: *062*\n"
+        "🚒 Bomberos: *080* / *085*\n"
+        "🏥 Emergencias sanitarias: *061*\n"
+        "⚠️ Protección Civil: *900 400 012*\n"
+        "🚨 Cruz Roja: *900 100 333*\n"
+        "🆘 Violencia de género: *016*\n\n"
+        "🔹 *Guarda estos números en tu móvil para cualquier emergencia.*"
+    )
+    await update.message.reply_text(emergency_numbers, parse_mode="Markdown")
+
 # analizar_reporte(mensaje): Envía el mensaje a la API de OpenAI para clasificarlo como 
 # aviso o petición y asignar categoría/subcategoría válida.
 def analizar_reporte(mensaje):
@@ -172,6 +383,12 @@ def analizar_reporte(mensaje):
 async def ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text.replace("/ayuda", "").strip()
     user_id = update.message.from_user.id
+
+    # Verificar si el usuario está verificado
+    if user_id not in context.user_data or "datos_verificados" not in context.user_data[user_id]:
+        await update.message.reply_text("⚠️ Necesitas verificar tus datos antes de enviar un reporte.\n"
+        "Usa el comando /verificar para iniciar el proceso.")
+        return
 
     # Verificar si el usuario está enviando el comando sin mensaje
     if not user_message:
@@ -334,7 +551,7 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         headers = {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer 123'
+            'Authorization': 'Bearer 123123123'
         }
 
         url = "https://servpubpre.madrid.es/AVSICAPIINT/requests?jurisdiction_id=es.madrid&return_data=false"
@@ -389,6 +606,14 @@ if __name__ == '__main__':
     application = ApplicationBuilder().token(CURAIME_BOT_KEY).build()
 
     application.add_handler(conv_handler)
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("verificar", verificar))
+    application.add_handler(CommandHandler("contacto", contacto))
+    application.add_handler(CommandHandler("informacion", como_usar))
+    application.add_handler(CommandHandler("comandos", comandos))
+    application.add_handler(CommandHandler("modificar", modificar))
+    application.add_handler(CommandHandler("datos", datos))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, recibir_datos))
 
     print("✅ El bot está en ejecución.")
     application.run_polling()
