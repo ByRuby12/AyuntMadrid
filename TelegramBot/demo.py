@@ -71,17 +71,19 @@ async def analizar_mensaje_con_openai(mensaje_usuario: str):
         {"role": "user", "content": mensaje_usuario}
     ]
 
+    contenido = None  # Inicializar la variable para evitar errores
+
     try:
-        response = openai.ChatCompletion.create(
+        response = await openai.ChatCompletion.acreate(
             model="gpt-4o-mini",
             messages=prompt,
             temperature=0.2
         )
-        contenido = response.choices[0].message["content"]
+        contenido = response["choices"][0]["message"]["content"]  # Acceso correcto al contenido de la respuesta
         print(f"Respuesta de OpenAI: {contenido}")
-        
+
         resultado = json.loads(contenido)
-        
+
         # Verificar si el resultado corresponde con una categoría y subcategoría válidas
         if "tipo" in resultado and "categoría" in resultado and "subcategoría" in resultado:
             tipo = resultado["tipo"]
@@ -111,7 +113,8 @@ async def analizar_mensaje_con_openai(mensaje_usuario: str):
             print("No se encontraron 'tipo', 'categoría' o 'subcategoría' en la respuesta de OpenAI.")
     except Exception as e:
         print("Error al analizar respuesta de OpenAI:", e)
-        print("Contenido recibido:", contenido)
+        if contenido:
+            print("Contenido recibido:", contenido)
 
     return None
 
@@ -357,7 +360,7 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         headers = {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer MDU1M2U1NDQ0ZTdmMjBlNjU3YWIxYjlhNzczMzI4NzRlZjA5NTY5MDhlODQ3ZTAzNGQ2MWI3OWZkZmNlZTgxYw'
+            'Authorization': 'Bearer 1234'
         }
 
         url = "https://servpubpre.madrid.es/AVSICAPIINT/requests?jurisdiction_id=es.madrid&return_data=false"
