@@ -29,27 +29,35 @@ openai.api_key = OPENAI_API_KEY
 ESPERANDO_UBICACION, ESPERANDO_MEDIA = range(2)
 
 # Mensaje de sistema para OpenAI
-system_content_prompt = (
-    "Eres un asistente del Ayuntamiento de Madrid encargado de clasificar reportes ciudadanos. "
-    "Los reportes pueden ser de tipo 'aviso' (problemas o incidencias) o 'petición' (solicitudes de mejora). "
-    "Debes analizar un mensaje del usuario e identificar su tipo ('aviso' o 'petición'), una categoría y una subcategoría, "
-    "siguiendo estrictamente los valores que aparecen en los diccionarios oficiales del Ayuntamiento.\n\n"
+system_content_prompt = f"""
+Eres un asistente del Ayuntamiento de Madrid encargado de clasificar reportes ciudadanos. 
+Los reportes pueden ser de tipo 'aviso' (problemas o incidencias) o 'petición' (solicitudes de mejora). 
+Debes analizar un mensaje del usuario e identificar su tipo ('aviso' o 'petición'), una categoría y una subcategoría, 
+siguiendo estrictamente los valores que aparecen en los diccionarios oficiales del Ayuntamiento.
 
-    "Aquí tienes el listado completo de categorías y subcategorías válidas:\n\n"
-    f"Categorías y subcategorías para AVISOS:\n"
-    f"{json.dumps(AVISOS_PRUEBA, indent=2, ensure_ascii=False)}\n\n"
-    f"Categorías y subcategorías para PETICIONES:\n"
-    f"{json.dumps(PETICIONES_PRUEBA, indent=2, ensure_ascii=False)}\n\n"
+Aquí tienes el listado completo de categorías y subcategorías válidas:
 
-    "🔍 IMPORTANTE:\n"
-    "- Aunque el mensaje del usuario no coincida exactamente con las palabras del diccionario, intenta identificar sinónimos o frases similares.\n"
-    "- Si el mensaje describe una situación que encaja con alguna subcategoría, devuélvela aunque esté redactada de forma diferente.\n"
-    "- Si no puedes identificar claramente ninguna categoría o subcategoría válida, no devuelvas nada.\n\n"
-    
-    "⚠️ DEVUELVE SOLO UN JSON VÁLIDO. EL FORMATO DEBE SER EL SIGUIENTE:\n"
-    '{"tipo": "aviso", "categoría": "Alumbrado Público", "subcategoría": "Calle Apagada"}\n\n'
-    "No incluyas ningún otro texto ni explicación, solo el JSON.\n"
-)
+Categorías y subcategorías para AVISOS:
+{json.dumps(AVISOS_PRUEBA, indent=2, ensure_ascii=False)}
+
+Categorías y subcategorías para PETICIONES:
+{json.dumps(PETICIONES_PRUEBA, indent=2, ensure_ascii=False)}
+
+🔍 INSTRUCCIONES CRÍTICAS:
+- El tipo ('aviso' o 'petición') debe determinarse exclusivamente según en qué diccionario (AVISOS o PETICIONES) se encuentre la categoría y subcategoría.
+- NO asumas el tipo por palabras como 'solicito', 'quiero', etc.
+- Si una subcategoría solo está en AVISOS, entonces el tipo debe ser 'aviso'.
+- Si está solo en PETICIONES, entonces el tipo debe ser 'petición'.
+
+🚫 ERROR COMÚN (NO LO COMETAS):
+- Mensaje: 'Solicito cubo de basura' → Subcategoría: 'Nuevo cubo o contenedor' (está en AVISOS) → Tipo correcto: 'aviso' (¡NO 'petición'!).
+
+⚠️ RESPUESTA: Devuelve solo un JSON válido en este formato:
+{{"tipo": "aviso", "categoría": "Alumbrado Público", "subcategoría": "Calle Apagada"}}
+
+Si no puedes clasificar el mensaje, responde con un JSON vacío: {{}}
+No incluyas ningún texto adicional. Solo el JSON.
+"""
 
 # ------------------------FUNCIONES----------------------------------
 
@@ -220,7 +228,7 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tipo_media = None
 
     if update.message.photo:
-        archivo = update.message.photo[-1].file_id  # última = mayor resolución
+        archivo = update.message.photo[-1].file_id
         tipo_media = "foto"
     elif update.message.video:
         archivo = update.message.video.file_id
@@ -231,6 +239,7 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Por favor, envía una foto, un video o pulsa 'Omitir'.")
         return ESPERANDO_MEDIA
 
+    # Mensaje que se enviará al grupo de Telegram
     mensaje_grupo = (
         f"📢 Nuevo {datos['tipo'].upper()} recibido:\n\n"
         f"👤 Usuario: {datos['usuario']}\n"
@@ -265,10 +274,123 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await context.bot.send_message(chat_id=TELEGRAM_GROUP_ID, text=mensaje_grupo, parse_mode="Markdown")
 
-    await update.message.reply_text(
-        "✅ Tu reporte ha sido enviado al Ayuntamiento. ¡Gracias por tu colaboración!",
-        reply_markup=ReplyKeyboardRemove()
-    )
+    # Enviar a la Plataforma del Ayuntamiento
+    try:
+        payload = {
+            "service_id": "591b36544e4ea839018b4653",  # Usar la ID de la subcategoría
+            "description": datos["descripcion"],  # Descripción
+            "position": {
+               "lat": datos["latitud"],
+               "lng": datos["longitud"],
+                "location_additional_data": [
+                    {
+                        "question": "5e49c26b6d4af6ac018b4623",  # TIPO DE VIA
+                        "value": "Avenida"
+                    },
+                    {
+                        "question": "5e49c26b6d4af6ac018b4624",  # NOMBRE DE VIA 
+                        "value": "Brasil"
+                    },
+                    {
+                        "question": "5e49c26b6d4af6ac018b4625",  # NUMERO DE VIA
+                        "value": "5"
+                    },
+                    {
+                        "question": "5e49c26b6d4af6ac018b4627",  # CODIGO POSTAL
+                        "value": 28020
+                    },
+                    {
+                        "question": "5e49c26b6d4af6ac018b4628",  # NOMBRE DEL BARRIO
+                        "value": "Cuatro Caminos"
+                    },
+                    {
+                        "question": "5e49c26b6d4af6ac018b4629",  # NOMBRE DISTRITO
+                        "value": "Tetuan"
+                    },
+                    {
+                        "question": "5e49c26b6d4af6ac018b462a",  # CODIGO DEL DISTRITO
+                        "value": 6
+                    },
+                    {
+                        "question": "5e49c26b6d4af6ac018b462b",  # CODIGO DEL BARRIO
+                        "value": 2
+                    },
+                    {
+                        "question": "5e49c26b6d4af6ac018b462d",  # COORDENADA DE X DEL NDP
+                        "value": 441155.2
+                    },
+                    {
+                        "question": "5e49c26b6d4af6ac018b462e",  # Coordenada Y del NDP
+                        "value": 4478434.5
+                    },
+                    {
+                        "question": "5e49c26b6d4af6ac018b4633",  # Id ndp
+                        "value": 20011240
+                    },
+                    {
+                        "question": "5e49c26b6d4af6ac018b462f",  # Coordenada X del reporte
+                        "value": 441182.22
+                    },
+                    {
+                        "question": "5e49c26b6d4af6ac018b4630",  # Coordenada Y del reporte
+                        "value": 4478435.6
+                    },
+                    {
+                        "question": "5e49c26b6d4af6ac018b4632",  # Id de la via
+                        "value": 114200
+                    },
+                    {
+                        "question": "5e49c26b6d4af6ac018b4631",  # orientación
+                        "value": "Oeste"
+                    }
+                ]
+            },
+            "address_string": "Calle Mayor, 12",  # Dirección de ejemplo
+            "device_type": "5922cfab4e4ea823178b4568",  # Optional
+            "additionalData": [
+                {
+                    "question": "5e49c26b6d4af6ac018b45d2",  # ¿Cual es el problema?
+                    "value": "Malos olores"
+                }
+            ]
+        }
+
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer MDU1M2U1NDQ0ZTdmMjBlNjU3YWIxYjlhNzczMzI4NzRlZjA5NTY5MDhlODQ3ZTAzNGQ2MWI3OWZkZmNlZTgxYw'
+        }
+
+        url = "https://servpubpre.madrid.es/AVSICAPIINT/requests?jurisdiction_id=es.madrid&return_data=false"
+        
+        response = requests.post(url, headers=headers, json=payload)
+
+        try:
+            response_data = response.json()
+            service_request_id = response_data.get("service_request_id", "No disponible")
+        except json.JSONDecodeError:
+            service_request_id = "No disponible"
+
+        print(f"╔――――Respuesta del servidor: {response.text}")
+        print(f"╚―――――――――――――――――――――――――――――――――――――")
+
+        # Solo enviar el mensaje de seguimiento al usuario, no al grupo
+        respuesta = (
+            f"📋 Reporte Seguimiento: {service_request_id}\n"
+            f"👤 Usuario: `{datos['usuario']}`\n"
+            f"📌 Tipo: {datos['tipo'].capitalize()}\n"
+            f"📂 Categoría: {datos['categoria']}\n"
+            f"🔖 Subcategoría: {datos['subcategoria']}\n"
+            f"🔖 ID Subcategoria: `{datos['id_subcategoria']}`\n"
+            f"🗺️ Dirección: {datos['latitud']} {datos['longitud']}\n"
+            f"💬 Descripción: {datos['descripcion']}\n"
+        )
+
+        await update.message.reply_text(respuesta, parse_mode="Markdown")
+        await update.message.reply_text("✅ Tu reporte ha sido enviado correctamente a la Plataforma del Ayuntamiento de Madrid")
+
+    except Exception as e:
+        print(f"❌ Error al enviar a la plataforma del ayuntamiento: {e}")
+        await update.message.reply_text("⚠️ Error al enviar el reporte al Ayuntamiento. Pero se ha enviado correctamente al grupo.")
 
     return ConversationHandler.END
 
