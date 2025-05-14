@@ -46,7 +46,7 @@ AVISOS_PRUEBA = {
         {"nombre": "Cubo o contenedor abandonado", "id": ["591b10b24e4ea840018b4599"]},
         {"nombre": "Cubo o contenedor en mal estado", "id": ["591b0eea4e4ea839018b4576"]},
         {"nombre": "Horquillas delimitadoras", "id": ["591b11c24e4ea839018b45b4"]},
-        {"nombre": "Nuevo cubo o contenedor", "id": ["591b0cf14e4ea840018b4573"]},
+        # {"nombre": "Nuevo cubo o contenedor", "id": ["591b0cf14e4ea840018b4573"]},
         {"nombre": "Vaciado de aceite", "id": ["63626c55f2e31df5178b457c"]},
         {"nombre": "Vaciado de cubo o contenedor", "id": ["591b0fd64e4ea839018b4584"]}
     ],
@@ -71,7 +71,7 @@ AVISOS_PRUEBA = {
     "Papeleras": [
         {"nombre": "Falta de bolsas para excrementos caninos", "id": ["591b17914e4ea839018b45e8"]},
         {"nombre": "Mal estado de papelera", "id": ["591b18404e4ea83a018b45cf"]},
-        {"nombre": "Nueva Instalación de Papelera", "id": ["591b17e84e4ea840018b45c4"]},
+        # {"nombre": "Nueva Instalación de Papelera", "id": ["591b17e84e4ea840018b45c4"]},
         {"nombre": "Vaciado de Papelera", "id": ["591b176a4e4ea839018b45d9"]}
     ],
     "Plagas": [
@@ -110,52 +110,11 @@ PETICIONES_PRUEBA = {
     ],
     "Señales y Semáforos": [
         {"nombre": "Nueva Señal", "id": ["591ed5b64e4ea839018b45b8"]}
-    ]
-}
-
-EMERGENCY_NUMBERS = {
-    # Emergencias generales
-    "emergencia médica": "🚑 Emergencias generales: *112*\n",
-    "accidente": "🚑 Emergencias generales: *112*\n",
-    "policía": "🚔 Policía Nacional: *091*\n",
-    "guardia civil": "👮‍♂️ Guardia Civil: *062*\n",
-    "bomberos": "🚒 Bomberos: *080* / *085*\n",
-    "protección civil": "⚠️ Protección Civil: *900 400 012*\n",
-    "cruz roja": "🚨 Cruz Roja: *900 100 333*\n",
-    
-    # Salud y asistencia
-    "sanitaria": "🏥 Emergencias sanitarias: *061*\n",
-    "toxicología": "☠️ Emergencias por intoxicación: *915 620 420* (Instituto Nacional de Toxicología)\n",
-    "farmacia de guardia": "💊 Información sobre farmacias de guardia: *010* o *098* (varía según comunidad autónoma)\n",
-    
-    # Seguridad y violencia
-    "violencia de género": "🆘 Violencia de género: *016* (anónimo y no deja rastro en la factura)\n",
-    "violencia doméstica": "🏠 Violencia doméstica: *016* (violencia en el hogar)\n",
-    "agresión sexual": "⚠️ Atención a víctimas de agresión sexual: *900 018 018*\n",
-    "ciberacoso": "💻 Ciberacoso y acoso escolar: *900 018 018*\n",
-    "maltrato infantil": "👶 Maltrato infantil: *900 202 010*\n",
-    "maltrato a ancianos": "👴 Maltrato a personas mayores: *900 22 22 23*\n",
-    
-    # Tráfico y transporte
-    "tráfico": "🚗 Emergencias en carretera (DGT): *011*\n",
-    "avería vehículo": "🛠️ Asistencia en carretera: Contacta con tu seguro o con la DGT (*011*)\n",
-    
-    # Personas desaparecidas y rescates
-    "niños desaparecidos": "🔎 Niños desaparecidos: *116 000*\n",
-    "personas desaparecidas": "🔎 SOS Desaparecidos: *649 952 957* / *617 126 909*\n",
-    "rescate en montaña": "🏔️ Rescate de montaña: *062* (Guardia Civil - GREIM)\n",
-    
-    # Prevención y ayuda psicológica
-    "suicidio": "💚 Teléfono contra el suicidio: *024*\n",
-    "depresión y ansiedad": "🧠 Teléfono de la esperanza (apoyo emocional): *717 003 717*\n",
-    
-    # Emergencias ambientales y animales
-    "incendios forestales": "🔥 Incendios forestales: *112* o *085*\n",
-    "medio ambiente": "🌿 Denuncias medioambientales: *062* (Seprona - Guardia Civil)\n",
-    "emergencia animal": "🐶 Emergencias animales: *900 181 221* (Seprona - Guardia Civil)\n",
-    
-    # Atención ciudadana
-    "atención al ciudadano": "📞 Información general: *010* (ayuntamiento)\n",
-    "consumo": "🛒 Reclamaciones de consumo: *901 400 100* (OMIC - Consumo)\n",
-    "gas y electricidad": "⚡ Urgencias de gas y electricidad: Contacta con tu proveedor o *112*\n"
+    ],
+    "Papeleras": [
+        {"nombre": "Nueva Instalación de Papelera", "id": ["591b17e84e4ea840018b45c4"]}
+    ],
+     "Cubos y Contenedores": [
+        {"nombre": "Nuevo cubo o contenedor", "id": ["591b0cf14e4ea840018b4573"]},
+     ]
 }

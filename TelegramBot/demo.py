@@ -35,6 +35,8 @@ Los reportes pueden ser de tipo 'aviso' (problemas o incidencias) o 'petición' 
 Debes analizar un mensaje del usuario e identificar su tipo ('aviso' o 'petición'), una categoría y una subcategoría, 
 siguiendo estrictamente los valores que aparecen en los diccionarios oficiales del Ayuntamiento.
 
+Cada categoría contiene una lista de subcategorías, y cada subcategoría tiene un campo "nombre" que debes usar como referencia exacta para clasificar.
+
 Aquí tienes el listado completo de categorías y subcategorías válidas:
 
 Categorías y subcategorías para AVISOS:
