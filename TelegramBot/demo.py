@@ -132,16 +132,21 @@ async def manejar_mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
     resultado = await analizar_mensaje_con_openai(mensaje)
 
     if not resultado or "tipo" not in resultado or "categoría" not in resultado or "subcategoría" not in resultado:
-        print("Mensaje no clasificado correctamente. Respondiendo con mensaje genérico.")
+        print("Mensaje no clasificado correctamente. Respondiendo con mensajes fluidos.")
         print(f"╚―――――――――――――――――――――――――――――――――――――")
-        await update.message.reply_text(
-            "👋 Hola, soy el bot del Ayuntamiento de Madrid.\n\n"
-            "Estoy aquí para ayudarte a comunicar *avisos* y *peticiones*:\n\n"
-            "🔴 *Aviso*: Cuando quieras informar de un problema, daño o incidencia en tu barrio (por ejemplo: una farola rota, ruido molesto, suciedad en la calle...).\n\n"
-            "🟢 *Petición*: Cuando desees proponer una mejora o solicitar algo nuevo (por ejemplo: más bancos en un parque, nueva zona deportiva, más papeleras...).\n\n"
-            "✍️ Por favor, escribe tu mensaje explicando el problema o la mejora que necesitas. Yo me encargo de clasificarlo y enviarlo al Ayuntamiento.",
-            parse_mode="Markdown"
-        )
+        # Efecto "escribiendo" antes de cada mensaje
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+        await asyncio.sleep(3)
+        await update.message.reply_text("👋 ¡Hola! Soy el bot del Ayuntamiento de Madrid 🏛️")
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+        await asyncio.sleep(3)
+        await update.message.reply_text("🔴 Crear un *aviso*: informa de un problema en tu barrio (ej: farola rota, suciedad...)", parse_mode="Markdown")
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+        await asyncio.sleep(3)
+        await update.message.reply_text("🟢 Realizar una *petición*: solicita una mejora o algo nuevo (ej: más bancos, papeleras...)", parse_mode="Markdown")
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+        await asyncio.sleep(3)
+        await update.message.reply_text("✍️ Detalla tu problema o propuesta en un mensaje. Yo lo clasifico y lo envío al Ayuntamiento 🚀", parse_mode="Markdown")
         return ConversationHandler.END
 
     tipo = resultado["tipo"]
@@ -185,6 +190,9 @@ async def manejar_mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     print("Esperando ubicación del usuario...")
 
+    # Efecto typing antes de enviar mensaje de ubicación
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+    await asyncio.sleep(3)
     await update.message.reply_text(
         f"✅ He detectado un {tipo} en la categoría '{categoria}' y subcategoría '{subcategoria}'.\n\n"
         "Por favor, envíame la ubicación del incidente:",
@@ -209,6 +217,8 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     datos["usuario"] = update.message.from_user.full_name
     datos["fecha"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+    await asyncio.sleep(3)
     await update.message.reply_text(
         "📸 Si quieres, ahora puedes enviar una *foto o video* del problema. "
         "Esto puede ayudar a los equipos del Ayuntamiento.\n\n"
@@ -226,6 +236,8 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     datos = context.user_data.get("reporte", {})
 
     if not datos:
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+        await asyncio.sleep(3)
         await update.message.reply_text("❌ No tengo datos del reporte. Inténtalo de nuevo.", reply_markup=ReplyKeyboardRemove())
         return ConversationHandler.END
 
@@ -241,8 +253,11 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif update.message.text and update.message.text.lower() == "omitir":
         tipo_media = "omitido"
     else:
-        await update.message.reply_text("❌ Por favor, envía una foto, un video o pulsa 'Omitir'.")
-        return ESPERANDO_MEDIA
+        if not (update.message.photo or update.message.video):
+            await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+            await asyncio.sleep(3)
+            await update.message.reply_text("❌ Por favor, envía una foto, un video o pulsa 'Omitir'.")
+            return ESPERANDO_MEDIA
 
     # Mensaje que se enviará al grupo de Telegram
     mensaje_grupo = (
@@ -362,7 +377,7 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         headers = {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer 1234'
+            'Authorization': 'Bearer 123'
         }
 
         url = "https://servpubpre.madrid.es/AVSICAPIINT/requests?jurisdiction_id=es.madrid&return_data=false"
@@ -391,12 +406,15 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         await update.message.reply_text(respuesta, parse_mode="Markdown")
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+        await asyncio.sleep(3)
         await update.message.reply_text("✅ Tu reporte ha sido enviado correctamente a la Plataforma del Ayuntamiento de Madrid")
 
     except Exception as e:
         print(f"❌ Error al enviar a la plataforma del ayuntamiento: {e}")
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+        await asyncio.sleep(3)
         await update.message.reply_text("⚠️ Error al enviar el reporte al Ayuntamiento. Pero se ha enviado correctamente al grupo.")
-
     return ConversationHandler.END
 
 # -------------------------MAIN---------------------------------------
