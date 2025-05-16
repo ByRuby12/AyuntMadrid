@@ -30,10 +30,12 @@ ESPERANDO_UBICACION, ESPERANDO_MEDIA = range(2)
 
 # Mensaje de sistema para OpenAI
 system_content_prompt = f"""
-Eres un asistente del Ayuntamiento de Madrid encargado de clasificar reportes ciudadanos. 
-Los reportes pueden ser de tipo 'aviso' (problemas o incidencias) o 'petición' (solicitudes de mejora). 
-Debes analizar un mensaje del usuario e identificar su tipo ('aviso' o 'petición'), una categoría y una subcategoría, 
+Eres un asistente del Ayuntamiento de Madrid encargado de clasificar reportes ciudadanos.
+Los reportes pueden ser de tipo 'aviso' (problemas o incidencias) o 'petición' (solicitudes de mejora).
+Debes analizar un mensaje del usuario e identificar su tipo ('aviso' o 'petición'), una categoría y una subcategoría,
 siguiendo estrictamente los valores que aparecen en los diccionarios oficiales del Ayuntamiento.
+
+IMPORTANTE: El mensaje del usuario puede estar en cualquier idioma (español, inglés, francés, alemán, etc). Debes traducirlo internamente si es necesario y responder SIEMPRE en español, usando los nombres de categoría y subcategoría tal como aparecen en los diccionarios.
 
 Cada categoría contiene una lista de subcategorías, y cada subcategoría tiene un campo "nombre" que debes usar como referencia exacta para clasificar.
 
@@ -194,7 +196,11 @@ async def manejar_mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     await asyncio.sleep(3)
     await update.message.reply_text(
-        f"✅ He detectado un {tipo} en la categoría '{categoria}' y subcategoría '{subcategoria}'.\n\n"
+        f"✅ He detectado un {tipo} en la categoría '{categoria}' y subcategoría '{subcategoria}'.",
+    )
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+    await asyncio.sleep(3)
+    await update.message.reply_text(
         "Por favor, envíame la ubicación del incidente:",
         reply_markup=boton_ubicacion
     )
@@ -221,7 +227,13 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await asyncio.sleep(3)
     await update.message.reply_text(
         "📸 Si quieres, ahora puedes enviar una *foto o video* del problema. "
-        "Esto puede ayudar a los equipos del Ayuntamiento.\n\n"
+        "Esto puede ayudar a los equipos del Ayuntamiento.\n\n",
+        reply_markup=ReplyKeyboardMarkup([["Omitir"]], one_time_keyboard=True, resize_keyboard=True),
+        parse_mode="Markdown"
+    )
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+    await asyncio.sleep(3)
+    await update.message.reply_text(
         "O pulsa 'Omitir' para continuar sin archivo.",
         reply_markup=ReplyKeyboardMarkup([["Omitir"]], one_time_keyboard=True, resize_keyboard=True),
         parse_mode="Markdown"
@@ -255,7 +267,7 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         if not (update.message.photo or update.message.video):
             await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-            await asyncio.sleep(3)
+            await asyncio.sleep(1)
             await update.message.reply_text("❌ Por favor, envía una foto, un video o pulsa 'Omitir'.")
             return ESPERANDO_MEDIA
 
@@ -286,13 +298,6 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     print("Enviando mensaje al grupo con" + (" multimedia" if tipo_media != "omitido" else " sin multimedia"))
     print(f"╚―――――――――――――――――――――――――――――――――――――")
-
-    if tipo_media == "foto":
-        await context.bot.send_photo(chat_id=TELEGRAM_GROUP_ID, photo=archivo, caption=mensaje_grupo, parse_mode="Markdown")
-    elif tipo_media == "video":
-        await context.bot.send_video(chat_id=TELEGRAM_GROUP_ID, video=archivo, caption=mensaje_grupo, parse_mode="Markdown")
-    else:
-        await context.bot.send_message(chat_id=TELEGRAM_GROUP_ID, text=mensaje_grupo, parse_mode="Markdown")
 
     # Enviar a la Plataforma del Ayuntamiento
     try:
@@ -377,21 +382,54 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         headers = {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer 123'
+            'Authorization': 'Bearer 124'
         }
 
         url = "https://servpubpre.madrid.es/AVSICAPIINT/requests?jurisdiction_id=es.madrid&return_data=false"
         
         response = requests.post(url, headers=headers, json=payload)
-
         try:
             response_data = response.json()
             service_request_id = response_data.get("service_request_id", "No disponible")
         except json.JSONDecodeError:
             service_request_id = "No disponible"
-
         print(f"╔――――Respuesta del servidor: {response.text}")
         print(f"╚―――――――――――――――――――――――――――――――――――――")
+        # Comprobar si el error es por zona fuera de Madrid
+        if (
+            isinstance(response_data, dict)
+            and response_data.get("error_msg")
+            and "Coordinates do not have a valid zones" in response.text
+        ):
+            await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+            await asyncio.sleep(2)
+            await update.message.reply_text(
+                "❌ No se puede enviar el aviso/petición porque la ubicación seleccionada está fuera de la ciudad de Madrid.\n\nSolo se pueden enviar reportes dentro del municipio de Madrid.",
+                parse_mode="Markdown"
+            )
+            return ConversationHandler.END
+
+        # Si todo es correcto, enviar el mensaje al grupo de Telegram
+        if tipo_media == "foto":
+            await context.bot.send_photo(
+                chat_id=TELEGRAM_GROUP_ID,
+                photo=archivo,
+                caption=mensaje_grupo,
+                parse_mode="Markdown"
+            )
+        elif tipo_media == "video":
+            await context.bot.send_video(
+                chat_id=TELEGRAM_GROUP_ID,
+                video=archivo,
+                caption=mensaje_grupo,
+                parse_mode="Markdown"
+            )
+        else:
+            await context.bot.send_message(
+                chat_id=TELEGRAM_GROUP_ID,
+                text=mensaje_grupo,
+                parse_mode="Markdown"
+            )
 
         # Solo enviar el mensaje de seguimiento al usuario, no al grupo
         respuesta = (
