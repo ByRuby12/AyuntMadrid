@@ -139,7 +139,7 @@ async def manejar_mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Efecto "escribiendo" antes de cada mensaje
         await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
         await asyncio.sleep(3)
-        await update.message.reply_text("👋 ¡Hola! Soy el bot oficial del Ayuntamiento de Madrid 🏛️ y estoy aquí para ayudarte a comunicar cualquier incidencia o sugerencia sobre la ciudad.")
+        await update.message.reply_text("👋 ¡Hola! Soy el bot oficial del Ayuntamiento de Madrid y estoy aquí para ayudarte a comunicar cualquier incidencia o sugerencia sobre la ciudad🏛️")
         await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
         await asyncio.sleep(3)
         await update.message.reply_text("📢​ Puedes realizar un reporte de dos formas sencillas:")
@@ -439,7 +439,7 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"📌 Tipo: {datos['tipo'].capitalize()}\n"
             f"📂 Categoría: {datos['categoria']}\n"
             f"🔖 Subcategoría: {datos['subcategoria']}\n"
-            f"🔖 ID Subcategoria: `{datos['id_subcategoria']}`\n"
+            # f"🔖 ID Subcategoria: `{datos['id_subcategoria']}`\n"
             f"🗺️ Dirección: {datos['latitud']} {datos['longitud']}\n"
             f"💬 Descripción: {datos['descripcion']}\n"
         )
