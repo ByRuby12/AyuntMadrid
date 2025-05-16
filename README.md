@@ -1,4 +1,5 @@
 # Documentación del Bot de Telegram para el Ayuntamiento de Madrid
+Este bot ha sido realizado por ByRuby12 (Tomas Cano) durante las prácticas de Grado Superior de Desarrollo de Aplicaciones Web (DAW) en el Ayuntamiento de Madrid, distrito San Blas (IAM).
 
 ## Introducción
 Este bot de Telegram está diseñado para facilitar la comunicación entre los ciudadanos y el Ayuntamiento de Madrid. Permite a los usuarios enviar reportes de problemas o solicitudes de mejora, que son clasificados automáticamente y enviados tanto a un grupo de Telegram como a la plataforma del Ayuntamiento.
