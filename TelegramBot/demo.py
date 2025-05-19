@@ -383,7 +383,7 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         headers = {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer NGY3MWRjODdkZGMxMGU3YzkyOGIwOTk4ZDliMjUyZDU2ZGY4NTVlMmExNjYyOTY2YmFlNDQyYmY0ODMyMjAyZA'
+            'Authorization': 'Bearer 1234'
         }
 
         url = "https://servpubpre.madrid.es/AVSICAPIINT/requests?jurisdiction_id=es.madrid&return_data=false"
