@@ -229,7 +229,7 @@ WELCOME_MESSAGES = {
         "🔴 *Crear un aviso*: informa de un problema en tu barrio (ej: farola rota, suciedad...)",
         "🟢 *Realizar una petición*: solicita una mejora o algo nuevo (ej: más bancos, papeleras...)",
         "✍️ Solo tienes que contarme tu problema o propuesta en un mensaje. Yo lo clasifico y lo envío al Ayuntamiento 🚀",
-        "🌐 Puedes cambiar el idioma del bot en cualquier momento enviando el nombre del idioma: español, inglés, francés, alemán, chino, portugués."
+        "🌐 Puedes hablarme en español, inglés, francés, alemán, chino o portugués. El bot detecta automáticamente el idioma y te responderá en ese idioma."
     ],
     'en': [
         "👋 Hi! I am the official bot of Madrid City Council. I'm here to help you report any issue or suggestion about the city🏛️",
@@ -237,7 +237,7 @@ WELCOME_MESSAGES = {
         "🔴 *Create a notice*: report a problem in your neighborhood (e.g., broken streetlight, dirt...)",
         "🟢 *Make a request*: ask for an improvement or something new (e.g., more benches, bins...)",
         "✍️ Just tell me your problem or proposal in a message. I will classify it and send it to the City Council 🚀",
-        "🌐 You can change the bot's language at any time by sending the language name: español, inglés, francés, alemán, chino, portugués."
+        "🌐 You can talk to me in Spanish, English, French, German, Chinese or Portuguese. The bot will automatically detect your language and reply in that language."
     ],
     'fr': [
         "👋 Bonjour! Je suis le bot officiel de la Mairie de Madrid et je suis là pour vous aider à signaler tout incident ou suggestion concernant la ville🏛️",
@@ -245,7 +245,7 @@ WELCOME_MESSAGES = {
         "🔴 *Créer un avis*: signalez un problème dans votre quartier (ex: lampadaire cassé, saleté...)",
         "🟢 *Faire une demande*: demandez une amélioration ou quelque chose de nouveau (ex: plus de bancs, poubelles...)",
         "✍️ Il vous suffit de me raconter votre problème ou proposition dans un message. Je le classerai et l'enverrai à la Mairie 🚀",
-        "🌐 Vous pouvez changer la langue du bot à tout moment en envoyant le nom de la langue : español, inglés, francés, alemán, chinois, portugés."
+        "🌐 Vous pouvez me parler en espagnol, anglais, français, allemand, chinois ou portugais. Le bot détectera automatiquement la langue et vous répondra dans cette langue."
     ],
     'de': [
         "👋 Hallo! Ich bin der offizielle Bot der Stadt Madrid und helfe dir, Vorfälle oder Vorschläge zur Stadt zu melden🏛️",
@@ -253,7 +253,7 @@ WELCOME_MESSAGES = {
         "🔴 *Hinweis erstellen*: Melde ein Problem in deinem Viertel (z.B. kaputte Laterne, Schmutz...)",
         "🟢 *Anfrage stellen*: Fordere eine Verbesserung oder etwas Neues an (z.B. mehr Bänke, Mülleimer...)",
         "✍️ Erzähl mir einfach dein Problem oder deinen Vorschlag in einer Nachricht. Ich klassifiziere es und sende es an die Stadtverwaltung 🚀",
-        "🌐 Du kannst die Sprache des Bots jederzeit ändern, indem du den Namen der Sprache sendest: español, inglés, francés, alemán, chino, portugés."
+        "🌐 Du kannst mit mir auf Spanisch, Englisch, Französisch, Deutsch, Chinesisch oder Portugiesisch sprechen. Der Bot erkennt deine Sprache automatisch und antwortet in dieser Sprache."
     ],
     'zh': [
         "👋 你好！我是马德里市政府的官方机器人，我可以帮助你报告城市中的任何问题或建议🏛️",
@@ -261,7 +261,7 @@ WELCOME_MESSAGES = {
         "🔴 *创建通知*：报告你所在社区的问题（例如：路灯坏了、脏乱等）",
         "🟢 *提出请求*：请求改进或新增设施（例如：更多长椅、垃圾桶等）",
         "✍️ 只需通过消息告诉我你的问题或建议。我会对其进行分类并发送给市政府 🚀",
-        "🌐 您可以随时通过发送以下语言名称来更改机器人的语言：español, inglés, francés, alemán, chino, portugés。"
+        "🌐 你可以用西班牙语、英语、法语、德语、中文或葡萄牙语与我交流。机器人会自动检测你的语言并用该语言回复你。"
     ],
     'pt': [
         "👋 Olá! Sou o bot oficial da Câmara Municipal de Madrid e estou aqui para te ajudar a comunicar qualquer incidente ou sugestão sobre a cidade🏛️",
@@ -269,6 +269,6 @@ WELCOME_MESSAGES = {
         "🔴 *Criar um aviso*: informe um problema no seu bairro (ex: poste quebrado, sujeira...)",
         "🟢 *Fazer um pedido*: solicite uma melhoria ou algo novo (ex: mais bancos, lixeiras...)",
         "✍️ Basta me contar seu problema ou proposta em uma mensagem. Eu classifico e envio para a Câmara Municipal 🚀",
-        "🌐 Você pode mudar o idioma do bot a qualquer momento enviando o nome do idioma: español, inglés, francês, alemán, chino, portugés."
+        "🌐 Você pode falar comigo em espanhol, inglês, francês, alemão, chinês ou português. O bot detecta automaticamente o idioma e responderá nesse idioma."
     ]
 }

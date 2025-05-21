@@ -1,10 +1,10 @@
 # -----------------------IMPORT LIBRERIAS---------------------------
-
 from diccionarios import AVISOS_PRUEBA, PETICIONES_PRUEBA, WELCOME_MESSAGES, BOT_TEXTS
 from claves import OPENAI_API_KEY, CURAIME_BOT_KEY, TELEGRAM_GROUP_ID
 from datetime import datetime
 from telegram import (Update, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, Location)
 from telegram.ext import (ApplicationBuilder, MessageHandler, filters, ContextTypes, ConversationHandler)
+from langdetect import detect
 
 import nest_asyncio
 import openai
@@ -129,28 +129,46 @@ async def manejar_mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(f"Mensaje recibido de {user_id}: {mensaje}")
 
     idiomas_map = {
-        'español': 'es', 'espanol': 'es', 'spanish': 'es',
-        'inglés': 'en', 'ingles': 'en', 'english': 'en',
-        'francés': 'fr', 'frances': 'fr', 'french': 'fr',
-        'alemán': 'de', 'aleman': 'de', 'german': 'de',
-        'chino': 'zh', 'chinese': 'zh', '中文': 'zh',
-        'portugués': 'pt', 'portugues': 'pt', 'portuguese': 'pt'
+        'es': 'es', 'en': 'en', 'fr': 'fr', 'de': 'de', 'zh': 'zh', 'pt': 'pt'
     }
 
-    # Detectar idioma y guardar en context.user_data
-    idioma = context.user_data.get("idioma")
-    if not idioma or mensaje.strip().lower() in idiomas_map:
-        idioma = idiomas_map.get(mensaje.strip().lower(), 'es')
-        if idioma not in WELCOME_MESSAGES:
-            idioma = 'en'
-        context.user_data["idioma"] = idioma
+    # Detectar idioma automáticamente usando langdetect
+    try:
+        detected_lang = detect(mensaje)
+        print(f"Idioma detectado: {detected_lang}")
+        idioma = idiomas_map.get(detected_lang)
+        # Corrección flexible: buscar palabras clave de saludo en el mensaje
+        saludos = {
+            'en': ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening'],
+            'es': ['hola', 'buenas', 'buenos días', 'buenas tardes', 'buenas noches'],
+            'fr': ['bonjour', 'salut', 'bonsoir'],
+            'de': ['hallo', 'guten tag', 'guten morgen', 'guten abend'],
+            'zh': ['你好', '您好', '早上好', '晚上好'],
+            'pt': ['olá', 'ola', 'bom dia', 'boa tarde', 'boa noite']
+        }
+        mensaje_limpio = mensaje.strip().lower()
+        if not idioma:
+            for lang, palabras in saludos.items():
+                if any(palabra in mensaje_limpio for palabra in palabras):
+                    idioma = lang
+                    print(f"Idioma forzado por palabra clave: {idioma}")
+                    break
+        if not idioma:
+            idioma = 'es'  # Por defecto español
+    except Exception as e:
+        print(f"No se pudo detectar el idioma, usando español por defecto. Error: {e}")
+        idioma = 'es'
+    context.user_data["idioma"] = idioma
 
     resultado = await analizar_mensaje_con_openai(mensaje)
 
     if not resultado or "tipo" not in resultado or "categoría" not in resultado or "subcategoría" not in resultado:
         print("Mensaje no clasificado correctamente. Respondiendo con mensajes fluidos.")
         print(f"╚―――――――――――――――――――――――――――――――――――――")
+        # Mostrar solo los mensajes de bienvenida sin la línea de cambio de idioma
         for texto in WELCOME_MESSAGES[idioma]:
+            if "idioma del bot" in texto:
+                continue  # Omitir la línea de cambio de idioma
             await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
             await asyncio.sleep(3)
             await update.message.reply_text(texto, parse_mode="Markdown")
