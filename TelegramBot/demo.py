@@ -1,5 +1,4 @@
 # -----------------------IMPORT LIBRERIAS---------------------------
-
 from diccionarios import AVISOS_PRUEBA, PETICIONES_PRUEBA, WELCOME_MESSAGES, BOT_TEXTS
 from claves import OPENAI_API_KEY, CURAIME_BOT_KEY
 from datetime import datetime
@@ -14,9 +13,7 @@ import requests
 import asyncio
 import time
 import re
-
 # --------------------CONFIGURACIONES PREVIAS-----------------------
-
 nest_asyncio.apply()
 
 # Configuración de claves
