@@ -1,6 +1,7 @@
 # -----------------------IMPORT LIBRERIAS---------------------------
+
 from diccionarios import AVISOS_PRUEBA, PETICIONES_PRUEBA, WELCOME_MESSAGES, BOT_TEXTS
-from claves import OPENAI_API_KEY, CURAIME_BOT_KEY
+from claves import OPENAI_API_KEY, CURAIME_BOT_KEY, TELEGRAM_GROUP_ID
 from datetime import datetime
 from telegram import (Update, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, Location)
 from telegram.ext import (ApplicationBuilder, MessageHandler, filters, ContextTypes, ConversationHandler)
@@ -11,13 +12,12 @@ import json
 import os
 import requests
 import asyncio
-import time
-import re
+
 # --------------------CONFIGURACIONES PREVIAS-----------------------
 nest_asyncio.apply()
 
 # Configuración de claves
-TELEGRAM_GROUP_ID = "-1002545875124"
+os.environ["TELEGRAM_GROUP_ID"] = TELEGRAM_GROUP_ID
 os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 os.environ["CURAIME_BOT_KEY"] = CURAIME_BOT_KEY
 openai.api_key = OPENAI_API_KEY
