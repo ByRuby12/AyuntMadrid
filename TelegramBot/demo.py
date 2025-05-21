@@ -1,6 +1,6 @@
 # -----------------------IMPORT LIBRERIAS---------------------------
 
-from diccionarios import AVISOS_PRUEBA, PETICIONES_PRUEBA
+from diccionarios import AVISOS_PRUEBA, PETICIONES_PRUEBA, WELCOME_MESSAGES, BOT_TEXTS
 from claves import OPENAI_API_KEY, CURAIME_BOT_KEY
 from datetime import datetime
 from telegram import (Update, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, Location)
@@ -15,7 +15,7 @@ import asyncio
 import time
 import re
 
-# -------------------------------------------------------------------
+# --------------------CONFIGURACIONES PREVIAS-----------------------
 
 nest_asyncio.apply()
 
@@ -131,27 +131,32 @@ async def manejar_mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(f"╔―――――――――――――――――――――――――――――――――――――")
     print(f"Mensaje recibido de {user_id}: {mensaje}")
 
+    idiomas_map = {
+        'español': 'es', 'espanol': 'es', 'spanish': 'es',
+        'inglés': 'en', 'ingles': 'en', 'english': 'en',
+        'francés': 'fr', 'frances': 'fr', 'french': 'fr',
+        'alemán': 'de', 'aleman': 'de', 'german': 'de',
+        'chino': 'zh', 'chinese': 'zh', '中文': 'zh',
+        'portugués': 'pt', 'portugues': 'pt', 'portuguese': 'pt'
+    }
+
+    # Detectar idioma y guardar en context.user_data
+    idioma = context.user_data.get("idioma")
+    if not idioma or mensaje.strip().lower() in idiomas_map:
+        idioma = idiomas_map.get(mensaje.strip().lower(), 'es')
+        if idioma not in WELCOME_MESSAGES:
+            idioma = 'en'
+        context.user_data["idioma"] = idioma
+
     resultado = await analizar_mensaje_con_openai(mensaje)
 
     if not resultado or "tipo" not in resultado or "categoría" not in resultado or "subcategoría" not in resultado:
         print("Mensaje no clasificado correctamente. Respondiendo con mensajes fluidos.")
         print(f"╚―――――――――――――――――――――――――――――――――――――")
-        # Efecto "escribiendo" antes de cada mensaje
-        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-        await asyncio.sleep(3)
-        await update.message.reply_text("👋 ¡Hola! Soy el bot oficial del Ayuntamiento de Madrid y estoy aquí para ayudarte a comunicar cualquier incidencia o sugerencia sobre la ciudad🏛️")
-        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-        await asyncio.sleep(3)
-        await update.message.reply_text("📢​ Puedes realizar un reporte de dos formas sencillas:")
-        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-        await asyncio.sleep(3)
-        await update.message.reply_text("🔴 *Crear un aviso*: informa de un problema en tu barrio (ej: farola rota, suciedad...)", parse_mode="Markdown")
-        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-        await asyncio.sleep(3)
-        await update.message.reply_text("🟢 *Realizar una petición*: solicita una mejora o algo nuevo (ej: más bancos, papeleras...)", parse_mode="Markdown")
-        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-        await asyncio.sleep(3)
-        await update.message.reply_text("✍️ Solo tienes que contarme tu problema o propuesta en un mensaje. Yo lo clasifico y lo envío al Ayuntamiento 🚀", parse_mode="Markdown")
+        for texto in WELCOME_MESSAGES[idioma]:
+            await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+            await asyncio.sleep(3)
+            await update.message.reply_text(texto, parse_mode="Markdown")
         return ConversationHandler.END
 
     tipo = resultado["tipo"]
@@ -163,15 +168,14 @@ async def manejar_mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
     id_subcategoria = None
     fuente = AVISOS_PRUEBA if tipo.lower() == "aviso" else PETICIONES_PRUEBA
 
-    # Verificamos que la categoría esté bien definida en el diccionario
     if categoria in fuente:
         subcategorias = fuente[categoria]
-        if isinstance(subcategorias, dict):  # Si es un diccionario de subcategorías
+        if isinstance(subcategorias, dict):
             for subcat_key, subcat_data in subcategorias.items():
                 if subcat_key.lower() == subcategoria.lower() or subcat_data["nombre"].lower() == subcategoria.lower():
                     id_subcategoria = subcat_data["id"][0] if subcat_data["id"] else None
                     break
-        elif isinstance(subcategorias, list):  # Si es una lista de subcategorías
+        elif isinstance(subcategorias, list):
             for subcat_data in subcategorias:
                 if subcat_data["nombre"].lower() == subcategoria.lower():
                     id_subcategoria = subcat_data["id"][0] if subcat_data["id"] else None
@@ -187,6 +191,8 @@ async def manejar_mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "descripcion": mensaje
     }
 
+    textos = BOT_TEXTS.get(idioma, BOT_TEXTS['es'])
+
     boton_ubicacion = ReplyKeyboardMarkup(
         [[KeyboardButton("📍 Enviar ubicación", request_location=True)]],
         one_time_keyboard=True,
@@ -195,16 +201,16 @@ async def manejar_mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     print("Esperando ubicación del usuario...")
 
-    # Efecto typing antes de enviar mensaje de ubicación
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     await asyncio.sleep(3)
     await update.message.reply_text(
-        f"✅ He detectado un {tipo} en la categoría '{categoria}' y subcategoría '{subcategoria}'.",
+        textos['detected'].format(tipo=tipo, categoria=categoria, subcategoria=subcategoria),
+        parse_mode="Markdown"
     )
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     await asyncio.sleep(3)
     await update.message.reply_text(
-        "Por favor, envíame la ubicación del incidente:",
+        textos['send_location'],
         reply_markup=boton_ubicacion
     )
     return ESPERANDO_UBICACION
@@ -214,10 +220,12 @@ async def manejar_mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ubicacion: Location = update.message.location
     datos = context.user_data.get("reporte", {})
+    idioma = context.user_data.get("idioma", "es")
+    textos = BOT_TEXTS.get(idioma, BOT_TEXTS['es'])
 
     if not datos:
         print("Error: No tengo datos del reporte. Finalizando conversación.")
-        await update.message.reply_text("❌ No tengo datos del reporte. Inténtalo de nuevo.", reply_markup=ReplyKeyboardRemove())
+        await update.message.reply_text(textos['no_report'], reply_markup=ReplyKeyboardRemove())
         return ConversationHandler.END
     print(f"Ubicación recibida: Latitud {ubicacion.latitude}, Longitud {ubicacion.longitude}")
 
@@ -229,14 +237,20 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     await asyncio.sleep(3)
     await update.message.reply_text(
-        "📸 Si quieres, ahora puedes enviar una *foto o video* del problema. Esto puede ayudar a los equipos del Ayuntamiento.",
+        textos['send_media'],
         parse_mode="Markdown"
     )
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     await asyncio.sleep(3)
+    skip_text = 'Omitir' if idioma == 'es' else (
+        'Skip' if idioma == 'en' else (
+        'Ignorer' if idioma == 'fr' else (
+        'Überspringen' if idioma == 'de' else (
+        '跳过' if idioma == 'zh' else (
+        'Pular')))))
     await update.message.reply_text(
-        "O pulsa 'Omitir' para continuar sin archivo.",
-        reply_markup=ReplyKeyboardMarkup([["Omitir"]], one_time_keyboard=True, resize_keyboard=True),
+        textos['skip_media'],
+        reply_markup=ReplyKeyboardMarkup([[skip_text]], one_time_keyboard=True, resize_keyboard=True),
         parse_mode="Markdown"
     )
 
@@ -247,15 +261,24 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Finalmente, finaliza la conversación.
 async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     datos = context.user_data.get("reporte", {})
+    idioma = context.user_data.get("idioma", "es")
+    textos = BOT_TEXTS.get(idioma, BOT_TEXTS['es'])
 
     if not datos:
         await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
         await asyncio.sleep(3)
-        await update.message.reply_text("❌ No tengo datos del reporte. Inténtalo de nuevo.", reply_markup=ReplyKeyboardRemove())
+        await update.message.reply_text(textos['no_report'], reply_markup=ReplyKeyboardRemove())
         return ConversationHandler.END
 
     archivo = None
     tipo_media = None
+
+    skip_text = 'Omitir' if idioma == 'es' else (
+        'Skip' if idioma == 'en' else (
+        'Ignorer' if idioma == 'fr' else (
+        'Überspringen' if idioma == 'de' else (
+        '跳过' if idioma == 'zh' else (
+        'Pular')))))
 
     if update.message.photo:
         archivo = update.message.photo[-1].file_id
@@ -263,16 +286,15 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif update.message.video:
         archivo = update.message.video.file_id
         tipo_media = "video"
-    elif update.message.text and update.message.text.lower() == "omitir":
+    elif update.message.text and update.message.text.lower() == skip_text.lower():
         tipo_media = "omitido"
     else:
         if not (update.message.photo or update.message.video):
             await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
             await asyncio.sleep(1)
-            await update.message.reply_text("❌ Por favor, envía una foto, un video o pulsa 'Omitir'.")
+            await update.message.reply_text(textos['media_error'])
             return ESPERANDO_MEDIA
 
-    # Mensaje que se enviará al grupo de Telegram
     mensaje_grupo = (
         f"📢 Nuevo {datos['tipo'].upper()} recibido:\n\n"
         f"👤 Usuario: {datos['usuario']}\n"
@@ -281,7 +303,6 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"📌 Tipo: {datos['tipo']}\n"
         f"📂 Categoría: {datos['categoria']}\n"
         f"🔖 Subcategoría: {datos['subcategoria']}\n"
-        # f"🔖 ID Subcategoria: `{datos['id_subcategoria']}`\n"
         f"📍 Ubicación: https://maps.google.com/?q={datos['latitud']},{datos['longitud']}"
     )
 
@@ -405,7 +426,7 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
             await asyncio.sleep(2)
             await update.message.reply_text(
-                "❌ No se puede enviar el aviso/petición porque la ubicación seleccionada está fuera de la ciudad de Madrid.\n\nSolo se pueden enviar reportes dentro del municipio de Madrid.",
+                textos['out_of_madrid'],
                 parse_mode="Markdown"
             )
             return ConversationHandler.END
@@ -432,28 +453,27 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode="Markdown"
             )
 
-        # Solo enviar el mensaje de seguimiento al usuario, no al grupo
-        respuesta = (
-            f"📋 Reporte Seguimiento: {service_request_id}\n"
-            f"👤 Usuario: `{datos['usuario']}`\n"
-            f"📌 Tipo: {datos['tipo'].capitalize()}\n"
-            f"📂 Categoría: {datos['categoria']}\n"
-            f"🔖 Subcategoría: {datos['subcategoria']}\n"
-            # f"🔖 ID Subcategoria: `{datos['id_subcategoria']}`\n"
-            f"🗺️ Dirección: {datos['latitud']} {datos['longitud']}\n"
-            f"💬 Descripción: {datos['descripcion']}\n"
+        respuesta = textos['followup'].format(
+            service_request_id=service_request_id,
+            usuario=datos['usuario'],
+            tipo=datos['tipo'].capitalize(),
+            categoria=datos['categoria'],
+            subcategoria=datos['subcategoria'],
+            latitud=datos['latitud'],
+            longitud=datos['longitud'],
+            descripcion=datos['descripcion']
         )
 
         await update.message.reply_text(respuesta, parse_mode="Markdown")
         await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
         await asyncio.sleep(3)
-        await update.message.reply_text("✅ Tu reporte ha sido enviado correctamente a la Plataforma del Ayuntamiento de Madrid")
+        await update.message.reply_text(textos['sent'])
 
     except Exception as e:
         print(f"❌ Error al enviar a la plataforma del ayuntamiento: {e}")
         await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
         await asyncio.sleep(3)
-        await update.message.reply_text("⚠️ Error al enviar el reporte al Ayuntamiento. Pero se ha enviado correctamente al grupo.")
+        await update.message.reply_text(textos['ayto_error'])
     return ConversationHandler.END
 
 # -------------------------MAIN---------------------------------------
