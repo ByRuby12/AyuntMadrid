@@ -4,6 +4,98 @@ Este bot ha sido realizado por ByRuby12 (Tomas Cano) durante las prácticas de G
 ## Introducción
 Este bot de Telegram está diseñado para facilitar la comunicación entre los ciudadanos y el Ayuntamiento de Madrid. Permite a los usuarios enviar reportes de problemas o solicitudes de mejora, que son clasificados automáticamente y enviados tanto a un grupo de Telegram como a la plataforma del Ayuntamiento.
 
+## Características principales
+
+- Multilingüe: responde en español, inglés, francés, alemán, chino o portugués según la preferencia del usuario. El usuario puede cambiar el idioma en cualquier momento enviando el nombre del idioma (por ejemplo, "español", "inglés", etc.).
+- Clasificación automática: utiliza OpenAI para clasificar los mensajes como "aviso" (incidencia) o "petición" (solicitud de mejora), y asigna la categoría y subcategoría correspondiente según los diccionarios oficiales del Ayuntamiento.
+- Conversación guiada: el bot guía al usuario paso a paso para enviar la ubicación y, opcionalmente, una foto o vídeo del problema.
+- Mensajes personalizados: todos los mensajes del flujo (confirmación, solicitud de ubicación, solicitud de foto/vídeo, seguimiento, errores, etc.) se muestran en el idioma seleccionado por el usuario.
+- Envío a la plataforma municipal: los reportes se envían tanto a un grupo de Telegram como a la plataforma oficial del Ayuntamiento de Madrid.
+- Manejo de errores: mensajes claros si el reporte no se puede clasificar, si la ubicación está fuera de Madrid, o si hay errores en el envío.
+
+## Ejemplo de flujo de usuario
+
+1. El usuario inicia la conversación y puede cambiar el idioma enviando el nombre del idioma.
+2. El usuario describe un problema o hace una petición.
+3. El bot clasifica el mensaje y responde en el idioma seleccionado, indicando el tipo, categoría y subcategoría detectados.
+4. El bot solicita la ubicación del incidente.
+5. El bot solicita una foto, vídeo o permite omitir este paso.
+6. El bot envía el reporte al grupo de Telegram y a la plataforma municipal, mostrando un mensaje de seguimiento y confirmación en el idioma del usuario.
+
+## Ejemplo de conversación
+
+A continuación se muestra un ejemplo de interacción con el bot en español y en inglés:
+
+**Usuario:** Hola, hay una farola rota en mi calle
+
+**Bot:**
+✅ He detectado un aviso en la categoría 'Alumbrado Público' y subcategoría 'Farola Apagada'.
+Por favor, envíame la ubicación del incidente:
+
+**Usuario:** (envía ubicación)
+
+**Bot:**
+📸 Si quieres, ahora puedes enviar una *foto o video* del problema. Esto puede ayudar a los equipos del Ayuntamiento.
+O pulsa 'Omitir' para continuar sin archivo.
+
+**Usuario:** (envía foto o pulsa Omitir)
+
+**Bot:**
+📋 Reporte Seguimiento: 123456789
+👤 Usuario: `Nombre Apellido`
+📌 Tipo: Aviso
+📂 Categoría: Alumbrado Público
+🔖 Subcategoría: Farola Apagada
+🗺️ Dirección: 40.4168 -3.7038
+💬 Descripción: Hola, hay una farola rota en mi calle
+✅ Tu reporte ha sido enviado correctamente a la Plataforma del Ayuntamiento de Madrid
+
+---
+
+**Usuario:** english
+
+**Bot:**
+👋 Hi! I am the official bot of Madrid City Council. I'm here to help you report any issue or suggestion about the city🏛️
+... (resto del mensaje de bienvenida en inglés)
+
+**Usuario:** There is a lot of trash in the park
+
+**Bot:**
+✅ I have detected a aviso in category 'Limpieza Viaria' and subcategory 'Basura Acumulada.'
+Please send me the location of the incident:
+
+**Usuario:** (sends location)
+
+**Bot:**
+📸 If you want, you can now send a *photo or video* of the issue. This can help the City Council teams.
+Or press 'Skip' to continue without a file.
+
+**Usuario:** (sends photo or presses Skip)
+
+**Bot:**
+📋 Report Follow-up: 987654321
+👤 User: `John Doe`
+📌 Type: Aviso
+📂 Category: Limpieza Viaria
+🔖 Subcategory: Basura Acumulada
+🗺️ Address: 40.4168 -3.7038
+💬 Description: There is a lot of trash in the park
+✅ Your report has been successfully sent to the Madrid City Council platform
+
+---
+
+El bot adapta todos los mensajes a cualquiera de los idiomas soportados según la preferencia del usuario.
+
+## Diccionarios y clasificación
+
+El bot utiliza diccionarios oficiales (`AVISOS_PRUEBA` y `PETICIONES_PRUEBA`) para validar categorías y subcategorías. La clasificación se realiza mediante la API de OpenAI, que responde siempre en español para garantizar la correspondencia exacta con los diccionarios.
+
+## Multilingüismo y cambio de idioma
+
+- El idioma de la conversación se puede cambiar en cualquier momento enviando el nombre del idioma (por ejemplo, "francés").
+- El idioma seleccionado se mantiene durante toda la conversación, y todos los mensajes del bot se adaptan automáticamente.
+- Idiomas soportados: español, inglés, francés, alemán, chino, portugués.
+
 ## Estructura del Código
 El código está dividido en varias secciones principales:
 
@@ -128,5 +220,26 @@ El bot incluye manejo de errores para:
 - Fallos en la clasificación del mensaje.
 - Errores al enviar el reporte a la plataforma del Ayuntamiento.
 
-## Conclusión
-Este bot automatiza el proceso de reporte de problemas y solicitudes de mejora, facilitando la comunicación entre los ciudadanos y el Ayuntamiento de Madrid. Su diseño modular y manejo de errores lo hacen robusto y fácil de mantener.
+## Pruebas unitarias
+
+El archivo `test_demo.py` incluye pruebas unitarias para la función de clasificación y el flujo principal del bot. Puedes ejecutarlas con:
+
+```bash
+python -m unittest test_demo.py
+```
+
+## Dependencias
+
+- python-telegram-bot
+- openai
+- requests
+- asyncio
+- nest_asyncio
+
+## Notas de seguridad
+
+- Las claves de API deben mantenerse en el archivo `claves.py` y nunca subirse a repositorios públicos.
+
+## Autor
+
+Bot realizado por ByRuby12 (Tomas Cano) durante las prácticas de Grado Superior de Desarrollo de Aplicaciones Web (DAW) en el Ayuntamiento de Madrid, distrito San Blas (IAM).
