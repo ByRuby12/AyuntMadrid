@@ -302,12 +302,7 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     await asyncio.sleep(3)
-    skip_text = 'Omitir' if idioma == 'es' else (
-        'Skip' if idioma == 'en' else (
-        'Ignorer' if idioma == 'fr' else (
-        'Überspringen' if idioma == 'de' else (
-        '跳过' if idioma == 'zh' else (
-        'Pular')))))
+    skip_text = textos.get('skip_button', 'Omitir')
     await update.message.reply_text(
         textos['skip_media'],
         reply_markup=ReplyKeyboardMarkup([[skip_text]], one_time_keyboard=True, resize_keyboard=True),
@@ -333,12 +328,7 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     archivo = None
     tipo_media = None
 
-    skip_text = 'Omitir' if idioma == 'es' else (
-        'Skip' if idioma == 'en' else (
-        'Ignorer' if idioma == 'fr' else (
-        'Überspringen' if idioma == 'de' else (
-        '跳过' if idioma == 'zh' else (
-        'Pular')))))
+    skip_text = textos.get('skip_button', 'Omitir')
 
     if update.message.photo:
         archivo = update.message.photo[-1].file_id
