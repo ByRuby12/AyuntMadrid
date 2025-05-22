@@ -18,6 +18,8 @@ import asyncio
 nest_asyncio.apply()
 
 # Configuración de claves
+if not (TELEGRAM_GROUP_ID and OPENAI_API_KEY and CURAIME_BOT_KEY):
+    raise print(f"❌ Error: Faltan claves necesarias para operar el bot. Revisa TELEGRAM_GROUP_ID, OPENAI_API_KEY y CURAIME_BOT_KEY en claves.py.")
 os.environ["TELEGRAM_GROUP_ID"] = TELEGRAM_GROUP_ID
 os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 os.environ["CURAIME_BOT_KEY"] = CURAIME_BOT_KEY
@@ -128,7 +130,8 @@ async def manejar_mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(f"Mensaje recibido de {user_id}: {mensaje}")
 
     idiomas_map = {
-        'es': 'es', 'en': 'en', 'fr': 'fr', 'de': 'de', 'zh': 'zh', 'pt': 'pt'
+        'es': 'es', 'en': 'en', 'fr': 'fr', 'de': 'de', 'zh': 'zh', 'pt': 'pt',
+        'it': 'it', 'ar': 'ar', 'ru': 'ru', 'hi': 'hi'
     }
 
     # Mejorar la detección de idioma: priorizar saludos sobre langdetect
@@ -138,8 +141,13 @@ async def manejar_mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
         'fr': ['bonjour', 'salut', 'bonsoir'],
         'de': ['hallo', 'guten tag', 'guten morgen', 'guten abend'],
         'zh': ['你好', '您好', '早上好', '晚上好'],
-        'pt': ['olá', 'ola', 'bom dia', 'boa tarde', 'boa noite']
+        'pt': ['olá', 'ola', 'bom dia', 'boa tarde', 'boa noite'],
+        'it': ['ciao', 'buongiorno', 'buonasera', 'salve'],
+        'ar': ['مرحبا', 'أهلاً', 'صباح الخير', 'مساء الخير'],
+        'ru': ['привет', 'здравствуйте', 'доброе утро', 'добрый день', 'добрый вечер'],
+        'hi': ['नमस्ते', 'हैलो', 'सुप्रभात', 'शुभ संध्या', 'शुभ रात्रि']
     }
+    
     mensaje_limpio = mensaje.strip().lower()
     idioma = None
     # 1. Buscar primero si es un saludo conocido
@@ -452,7 +460,7 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         headers = {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer 123321'
+            'Authorization': 'Bearer 123'
         }
 
         url = "https://servpubpre.madrid.es/AVSICAPIINT/requests?jurisdiction_id=es.madrid&return_data=false"
