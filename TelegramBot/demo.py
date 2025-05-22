@@ -1,4 +1,5 @@
 # -----------------------IMPORT LIBRERIAS---------------------------
+
 from diccionarios import AVISOS_PRUEBA, PETICIONES_PRUEBA, WELCOME_MESSAGES, BOT_TEXTS
 from claves import OPENAI_API_KEY, CURAIME_BOT_KEY, TELEGRAM_GROUP_ID
 from datetime import datetime
@@ -107,8 +108,6 @@ async def analizar_mensaje_con_openai(mensaje_usuario: str):
             else:
                 print(f"Categoría '{categoria}' no válida para el tipo '{tipo}'.")
                 return None  # Si la categoría no es válida, devolvemos None
-
-            print("Resultado válido, retornando.")
             return resultado
         else:
             print("No se encontraron 'tipo', 'categoría' o 'subcategoría' en la respuesta de OpenAI.")
@@ -132,31 +131,34 @@ async def manejar_mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
         'es': 'es', 'en': 'en', 'fr': 'fr', 'de': 'de', 'zh': 'zh', 'pt': 'pt'
     }
 
-    # Detectar idioma automáticamente usando langdetect
-    try:
-        detected_lang = detect(mensaje)
-        print(f"Idioma detectado: {detected_lang}")
-        idioma = idiomas_map.get(detected_lang)
-        # Corrección flexible: buscar palabras clave de saludo en el mensaje
-        saludos = {
-            'en': ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening'],
-            'es': ['hola', 'buenas', 'buenos días', 'buenas tardes', 'buenas noches'],
-            'fr': ['bonjour', 'salut', 'bonsoir'],
-            'de': ['hallo', 'guten tag', 'guten morgen', 'guten abend'],
-            'zh': ['你好', '您好', '早上好', '晚上好'],
-            'pt': ['olá', 'ola', 'bom dia', 'boa tarde', 'boa noite']
-        }
-        mensaje_limpio = mensaje.strip().lower()
-        if not idioma:
-            for lang, palabras in saludos.items():
-                if any(palabra in mensaje_limpio for palabra in palabras):
-                    idioma = lang
-                    print(f"Idioma forzado por palabra clave: {idioma}")
-                    break
-        if not idioma:
-            idioma = 'es'  # Por defecto español
-    except Exception as e:
-        print(f"No se pudo detectar el idioma, usando español por defecto. Error: {e}")
+    # Mejorar la detección de idioma: priorizar saludos sobre langdetect
+    saludos = {
+        'en': ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening'],
+        'es': ['hola', 'buenas', 'buenos días', 'buenas tardes', 'buenas noches'],
+        'fr': ['bonjour', 'salut', 'bonsoir'],
+        'de': ['hallo', 'guten tag', 'guten morgen', 'guten abend'],
+        'zh': ['你好', '您好', '早上好', '晚上好'],
+        'pt': ['olá', 'ola', 'bom dia', 'boa tarde', 'boa noite']
+    }
+    mensaje_limpio = mensaje.strip().lower()
+    idioma = None
+    # 1. Buscar primero si es un saludo conocido
+    for lang, palabras in saludos.items():
+        if any(palabra in mensaje_limpio for palabra in palabras):
+            idioma = lang
+            print(f"Idioma forzado por palabra clave: {idioma}")
+            break
+    # 2. Si no es saludo, usar langdetect si está en la lista
+    if not idioma:
+        try:
+            detected_lang = detect(mensaje)
+            print(f"Idioma detectado: {detected_lang}")
+            idioma = idiomas_map.get(detected_lang)
+        except Exception as e:
+            print(f"No se pudo detectar el idioma, usando español por defecto. Error: {e}")
+            idioma = 'es'
+    # 3. Si sigue sin idioma, poner español por defecto
+    if not idioma:
         idioma = 'es'
     context.user_data["idioma"] = idioma
 
@@ -248,7 +250,50 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     datos["longitud"] = ubicacion.longitude
     datos["usuario"] = update.message.from_user.full_name
     datos["fecha"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
+
+    # Validar ubicación con la API PRE antes de pedir foto/video
+    try:
+        payload = {
+            "service_id": "591b36544e4ea839018b4653",  # Usar la ID de la subcategoría o una por defecto
+            "description": datos["descripcion"],
+            "position": {
+                "lat": datos["latitud"],
+                "lng": datos["longitud"]
+            },
+            "address_string": "Calle Mayor, 12"
+        }
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer Yjk1MWRiZWVlN2Y4YmRkNmI2NTNkNjU2OGYyYjNlYTJjNzBiNjg0YzllN2Q1M2Q3N2IzYmY3NjcxZGI4ZGZiOA'
+        }
+        url = "https://servpubpre.madrid.es/AVSICAPIINT/requests?jurisdiction_id=es.madrid&return_data=false"
+        response = requests.post(url, headers=headers, json=payload)
+        try:
+            response_data = response.json()
+        except Exception:
+            response_data = {}
+        # Si el error es por zona fuera de Madrid, cancelar aquí
+        if (
+            isinstance(response_data, dict)
+            and response_data.get("error_msg")
+            and "Coordinates do not have a valid zones" in response.text
+        ):
+            await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+            await asyncio.sleep(2)
+            await update.message.reply_text(
+                textos['out_of_madrid'],
+                parse_mode="Markdown",
+                reply_markup=ReplyKeyboardRemove()
+            )
+            print(f"La ubicación está fuera de Madrid. Cancelando.")
+            print(f"╚―――――――――――――――――――――――――――――――――――――")
+            context.user_data.clear()
+            return ConversationHandler.END
+    except Exception as e:
+        print(f"Error validando ubicación con la API PRE: {e}")
+        await update.message.reply_text(textos['ayto_error'], reply_markup=ReplyKeyboardRemove())
+        return ConversationHandler.END
+
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     await asyncio.sleep(3)
     await update.message.reply_text(
@@ -322,7 +367,7 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     print(f"―――――――――――――――――――――――――――――――――――――")
-    print("📢 Nuevo", datos['tipo'].upper(), "recibido:\n")
+    print("📢 Nuevo", datos['tipo'].upper(), "recibido:")
     print("👤 Usuario:", datos['usuario'])
     print("📆 Fecha:", datos['fecha'])
     print("📄 Descripción:", datos['descripcion'])
@@ -330,9 +375,7 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print("📂 Categoría:", datos['categoria'])
     print("🔖 Subcategoría:", datos['subcategoria'])
     print("🔖 ID Subcategoría:", datos['id_subcategoria'])
-    print("📍 Ubicación: https://maps.google.com/?q=" + str(datos['latitud']) + "," + str(datos['longitud']))
-    print(f"―――――――――――――――――――――――――――――――――――――")
-
+    print("📍 Ubicación: https://maps.google.com/?q=" + str(datos['latitud']) + "," + str(datos['longitud']), "\n")
     print("Enviando mensaje al grupo con" + (" multimedia" if tipo_media != "omitido" else " sin multimedia"))
     print(f"╚―――――――――――――――――――――――――――――――――――――")
 
@@ -419,7 +462,7 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         headers = {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer 1234'
+            'Authorization': 'Bearer 123321'
         }
 
         url = "https://servpubpre.madrid.es/AVSICAPIINT/requests?jurisdiction_id=es.madrid&return_data=false"
@@ -491,6 +534,38 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(textos['ayto_error'])
     return ConversationHandler.END
 
+# Handler para recordar que debe enviar ubicación
+# Si el usuario no envía una ubicación, se le recuerda que debe hacerlo.
+# Si el usuario envía un texto, se le recuerda que debe enviar una ubicación o omitirlo.
+# Si el usuario envía un archivo multimedia, se le recuerda que debe enviar una ubicación o omitirlo.
+async def recordar_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    idioma = context.user_data.get("idioma", "es")
+    textos = BOT_TEXTS.get(idioma, BOT_TEXTS['es'])
+    await update.message.reply_text(
+        textos['location_error'],
+        reply_markup=ReplyKeyboardMarkup([[KeyboardButton("📍 Enviar ubicación", request_location=True)]],
+            one_time_keyboard=True,
+            resize_keyboard=True
+        )
+    )
+    return ESPERANDO_UBICACION
+
+# Handler para recordar que debe enviar foto/video/omitir
+# Si el usuario no envía un archivo multimedia, se le recuerda que debe hacerlo.
+# Si el usuario envía un texto, se le recuerda que debe enviar un archivo multimedia o omitirlo.
+async def recordar_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    idioma = context.user_data.get("idioma", "es")
+    textos = BOT_TEXTS.get(idioma, BOT_TEXTS['es'])
+    skip_text = textos.get('skip_button', 'Omitir')
+    await update.message.reply_text(
+        textos['media_error'],
+        reply_markup=ReplyKeyboardMarkup([[KeyboardButton(skip_text)]],
+            one_time_keyboard=True,
+            resize_keyboard=True
+        )
+    )
+    return ESPERANDO_MEDIA
+
 # -------------------------MAIN---------------------------------------
 
 # Inicia el bot y configura el manejador de conversación para recibir mensajes y ubicaciones.
@@ -498,14 +573,17 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Finalmente, se envía el reporte al grupo de Telegram y se confirma al usuario que su reporte ha sido enviado.
 
 if __name__ == '__main__':
-    app = ApplicationBuilder().token(CURAIME_BOT_KEY).build()
-
+    app = ApplicationBuilder().token(CURAIME_BOT_KEY).build()    
     conversation_handler = ConversationHandler(
         entry_points=[MessageHandler(filters.TEXT & ~filters.COMMAND, manejar_mensaje)],
         states={
-            ESPERANDO_UBICACION: [MessageHandler(filters.LOCATION, recibir_ubicacion)],
-            ESPERANDO_MEDIA: [
-                MessageHandler(filters.PHOTO | filters.VIDEO | filters.TEXT, recibir_media)
+            ESPERANDO_UBICACION: [
+                MessageHandler(filters.LOCATION, recibir_ubicacion),
+                MessageHandler(filters.ALL & ~filters.LOCATION, recordar_ubicacion)
+            ],            ESPERANDO_MEDIA: [
+                MessageHandler(filters.PHOTO | filters.VIDEO, recibir_media),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, recibir_media),
+                MessageHandler(filters.ALL & ~(filters.PHOTO | filters.VIDEO | (filters.TEXT & ~filters.COMMAND)), recordar_media)
             ]
         },
         fallbacks=[],

@@ -138,6 +138,8 @@ BOT_TEXTS = {
         'out_of_madrid': "❌ No se puede enviar el aviso/petición porque la ubicación seleccionada está fuera de la ciudad de Madrid.\n\nSolo se pueden enviar reportes dentro del municipio de Madrid.",
         'no_report': "❌ No tengo datos del reporte. Inténtalo de nuevo.",
         'media_error': "❌ Por favor, envía una foto, un video o pulsa 'Omitir'.",
+        'location_error': "❌ Por favor, envía una ubicación válida usando el botón correspondiente.",
+        'skip_button': 'Omitir',
         'ayto_error': "⚠️ Error al enviar el reporte al Ayuntamiento. Pero se ha enviado correctamente al grupo."
     },
     'en': {
@@ -158,6 +160,8 @@ BOT_TEXTS = {
         'out_of_madrid': "❌ The report cannot be sent because the selected location is outside the city of Madrid.\n\nReports can only be sent within the municipality of Madrid.",
         'no_report': "❌ I have no report data. Please try again.",
         'media_error': "❌ Please send a photo, a video, or press 'Skip'.",
+        'location_error': "❌ Please send a valid location using the corresponding button.",
+        'skip_button': 'Skip',
         'ayto_error': "⚠️ Error sending the report to the City Council. But it has been sent to the group."
     },
     'fr': {
@@ -178,6 +182,8 @@ BOT_TEXTS = {
         'out_of_madrid': "❌ Le rapport ne peut pas être envoyé car l'emplacement sélectionné est en dehors de la ville de Madrid.\n\nLes rapports ne peuvent être envoyés que dans la municipalité de Madrid.",
         'no_report': "❌ Je n'ai pas de données de rapport. Veuillez réessayer.",
         'media_error': "❌ Veuillez envoyer une photo, une vidéo ou appuyer sur 'Ignorer'.",
+        'location_error': "❌ Veuillez envoyer un emplacement valide en utilisant le bouton correspondant.",
+        'skip_button': 'Ignorer',
         'ayto_error': "⚠️ Erreur lors de l'envoi du rapport à la Mairie. Mais il a été envoyé au groupe."
     },
     'de': {
@@ -198,6 +204,8 @@ BOT_TEXTS = {
         'out_of_madrid': "❌ Der Bericht kann nicht gesendet werden, da der ausgewählte Standort außerhalb von Madrid liegt.\n\nBerichte können nur innerhalb der Gemeinde Madrid gesendet werden.",
         'no_report': "❌ Keine Berichtsdaten vorhanden. Bitte versuche es erneut.",
         'media_error': "❌ Bitte sende ein Foto, ein Video oder drücke 'Überspringen'.",
+        'location_error': "❌ Bitte sende einen gültigen Standort über den entsprechenden Button.",
+        'skip_button': 'Überspringen',
         'ayto_error': "⚠️ Fehler beim Senden des Berichts an die Stadtverwaltung. Aber er wurde an die Gruppe gesendet."
     },
     'zh': {
@@ -218,7 +226,31 @@ BOT_TEXTS = {
         'out_of_madrid': "❌ 由于所选位置不在马德里市内，无法发送报告。\n\n只能在马德里市内发送报告。",
         'no_report': "❌ 没有报告数据。请重试。",
         'media_error': "❌ 请发送照片、视频或点击“跳过”。",
+        'location_error': "❌ 请使用相应按钮发送有效的位置。",
+        'skip_button': '跳过',
         'ayto_error': "⚠️ 报告发送到市政平台时出错，但已成功发送到群组。"
+    },
+    'pt': {
+        'detected': "✅ Eu detectei um {tipo} na categoria '{categoria}' e subcategoria '{subcategoria}'.",
+        'send_location': "Por favor, envie-me a localização do incidente:",
+        'send_media': "📸 Se quiser, agora você pode enviar uma *foto ou vídeo* do problema. Isso pode ajudar as equipes da Prefeitura.",
+        'skip_media': "Ou pressione 'Pular' para continuar sem um arquivo.",
+        'followup': (
+            "📋 Acompanhamento do relatório: {service_request_id}\n"
+            "👤 Usuário: `{usuario}`\n"
+            "📌 Tipo: {tipo}\n"
+            "📂 Categoria: {categoria}\n"
+            "🔖 Subcategoria: {subcategoria}\n"
+            "🗺️ Endereço: {latitud} {longitud}\n"
+            "💬 Descrição: {descripcion}\n"
+        ),
+        'sent': "✅ Seu relatório foi enviado com sucesso para a plataforma da Prefeitura de Madrid",
+        'out_of_madrid': "❌ O relatório não pode ser enviado porque a localização selecionada está fora da cidade de Madrid.\n\nOs relatórios só podem ser enviados dentro do município de Madrid.",
+        'no_report': "❌ Não tenho dados do relatório. Por favor, tente novamente.",
+        'media_error': "❌ Por favor, envie uma foto, um vídeo ou clique em 'Pular'.",
+        'location_error': "❌ Por favor, envie uma localização válida usando o botão correspondente.",
+        'skip_button': 'Pular',
+        'ayto_error': "⚠️ Erro ao enviar o relatório para a Prefeitura. Mas foi enviado para o grupo."
     },
 }
 
