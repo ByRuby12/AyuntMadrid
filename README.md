@@ -84,6 +84,8 @@ Or press 'Skip' to continue without a file.
 
 ---
 
+> ⚠️ **Nota:** La descripción que se envía a la plataforma del Ayuntamiento es siempre el texto original del usuario, en el idioma en que lo escribió. La traducción automática al español solo se utiliza para mostrar el mensaje de seguimiento y en consola, garantizando que el Ayuntamiento reciba el reporte tal cual lo escribió el ciudadano.
+
 El bot adapta todos los mensajes a cualquiera de los idiomas soportados según la preferencia del usuario.
 
 ## Diccionarios y clasificación
@@ -190,14 +192,14 @@ if __name__ == '__main__':
 ### Envío a la Plataforma del Ayuntamiento
 El reporte se envía a la plataforma del Ayuntamiento mediante una solicitud HTTP POST. El payload incluye información como:
 
-- Descripción del problema.
+- Descripción del problema (texto original del usuario, sin traducir).
 - Coordenadas de ubicación.
 - Categoría y subcategoría del reporte.
 
 ```python
 payload = {
     "service_id": "591b36544e4ea839018b4653",
-    "description": datos["descripcion"],
+    "description": datos["descripcion"],  # Texto original del usuario
     "position": {
        "lat": datos["latitud"],
        "lng": datos["longitud"],
@@ -213,6 +215,8 @@ payload = {
     ]
 }
 ```
+
+> La traducción automática al español solo se utiliza para el mensaje de seguimiento y para mostrar en consola, nunca para el POST al Ayuntamiento.
 
 ### Manejo de Errores
 El bot incluye manejo de errores para:

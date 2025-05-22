@@ -1,5 +1,4 @@
 # -----------------------IMPORT LIBRERIAS---------------------------
-
 from diccionarios import AVISOS_PRUEBA, PETICIONES_PRUEBA, WELCOME_MESSAGES, BOT_TEXTS
 from claves import OPENAI_API_KEY, CURAIME_BOT_KEY, TELEGRAM_GROUP_ID
 from datetime import datetime
@@ -13,7 +12,6 @@ import json
 import os
 import requests
 import asyncio
-
 # --------------------CONFIGURACIONES PREVIAS-----------------------
 nest_asyncio.apply()
 
@@ -119,6 +117,26 @@ async def analizar_mensaje_con_openai(mensaje_usuario: str):
             print("Contenido recibido:", contenido)
 
     return None
+
+# Traduce un texto a español usando OpenAI si el idioma no es español
+async def traducir_a_espanol(texto, idioma_origen):
+    if idioma_origen == 'es':
+        return texto
+    prompt = [
+        {"role": "system", "content": "Eres un traductor profesional. Traduce el siguiente texto al español de España de forma natural y fiel al significado original. Devuelve solo el texto traducido, sin explicaciones ni formato extra."},
+        {"role": "user", "content": texto}
+    ]
+    try:
+        response = await openai.ChatCompletion.acreate(
+            model="gpt-4o-mini",
+            messages=prompt,
+            temperature=0.2
+        )
+        traduccion = response["choices"][0]["message"]["content"].strip()
+        return traduccion
+    except Exception as e:
+        print(f"Error traduciendo a español: {e}")
+        return texto  # Si falla, devuelve el original
 
 # Recibe el mensaje del usuario y lo analiza con la función anterior. Si es válido, guarda la información en context.user_data, 
 # informa al usuario del tipo de reporte detectado y le pide que comparta su ubicación. Si no es válido, le muestra un mensaje 
@@ -259,11 +277,16 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     datos["usuario"] = update.message.from_user.full_name
     datos["fecha"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+    # Traducir descripción al español si es necesario
+    descripcion_original = datos["descripcion"]
+    descripcion_es = await traducir_a_espanol(descripcion_original, idioma)
+    datos["descripcion_es"] = descripcion_es
+
     # Validar ubicación con la API PRE antes de pedir foto/video
     try:
         payload = {
             "service_id": "591b36544e4ea839018b4653",  # Usar la ID de la subcategoría o una por defecto
-            "description": datos["descripcion"],
+            "description": descripcion_es,
             "position": {
                 "lat": datos["latitud"],
                 "lng": datos["longitud"]
@@ -301,7 +324,9 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print(f"Error validando ubicación con la API PRE: {e}")
         await update.message.reply_text(textos['ayto_error'], reply_markup=ReplyKeyboardRemove())
         return ConversationHandler.END
-
+    
+    print(f"DESCRIPCIÓN EN ESPAÑOL: {descripcion_es}")
+    
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     await asyncio.sleep(3)
     await update.message.reply_text(
@@ -353,11 +378,15 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(textos['media_error'])
             return ESPERANDO_MEDIA
 
+    # Usar la descripción en español solo para el mensaje de seguimiento y consola, pero el POST debe llevar el original
+    descripcion_es = datos.get("descripcion_es", datos.get("descripcion", ""))
+    descripcion_original = datos.get("descripcion", "")
+
     mensaje_grupo = (
         f"📢 Nuevo {datos['tipo'].upper()} recibido:\n\n"
         f"👤 Usuario: {datos['usuario']}\n"
         f"🗓 Fecha: {datos['fecha']}\n"
-        f"📄 Descripción: {datos['descripcion']}\n"
+        f"📄 Descripción: {descripcion_es}\n"
         f"📌 Tipo: {datos['tipo']}\n"
         f"📂 Categoría: {datos['categoria']}\n"
         f"🔖 Subcategoría: {datos['subcategoria']}\n"
@@ -368,7 +397,7 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print("📢 Nuevo", datos['tipo'].upper(), "recibido:")
     print("👤 Usuario:", datos['usuario'])
     print("📆 Fecha:", datos['fecha'])
-    print("📄 Descripción:", datos['descripcion'])
+    print("📄 Descripción:", descripcion_es)
     print("📌 Tipo:", datos['tipo'])
     print("📂 Categoría:", datos['categoria'])
     print("🔖 Subcategoría:", datos['subcategoria'])
@@ -381,7 +410,7 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         payload = {
             "service_id": "591b36544e4ea839018b4653",  # Usar la ID de la subcategoría
-            "description": datos["descripcion"],  # Descripción
+            "description": descripcion_es,  # Descripción ORIGINAL del usuario
             "position": {
                "lat": datos["latitud"],
                "lng": datos["longitud"],
@@ -460,7 +489,7 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         headers = {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer 123'
+            'Authorization': 'Bearer 1234'
         }
 
         url = "https://servpubpre.madrid.es/AVSICAPIINT/requests?jurisdiction_id=es.madrid&return_data=false"
@@ -517,7 +546,7 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
             subcategoria=datos['subcategoria'],
             latitud=datos['latitud'],
             longitud=datos['longitud'],
-            descripcion=datos['descripcion']
+            descripcion=descripcion_original
         )
 
         await update.message.reply_text(respuesta, parse_mode="Markdown")
