@@ -1,6 +1,6 @@
 # -----------------------IMPORT LIBRERIAS---------------------------
 from diccionarios import AVISOS_PRUEBA, PETICIONES_PRUEBA, WELCOME_MESSAGES, BOT_TEXTS
-from claves import OPENAI_API_KEY, CURAIME_BOT_KEY, TELEGRAM_GROUP_ID
+from claves import OPENAI_API_KEY, CURAIME_BOT_KEY, TELEGRAM_GROUP_ID, AUTHORIZATION_TOKEN
 from datetime import datetime
 from telegram import (Update, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, Location)
 from telegram.ext import (ApplicationBuilder, MessageHandler, filters, ContextTypes, ConversationHandler)
@@ -17,10 +17,11 @@ nest_asyncio.apply()
 
 # Configuración de claves
 if not (TELEGRAM_GROUP_ID and OPENAI_API_KEY and CURAIME_BOT_KEY):
-    raise print(f"❌ Error: Faltan claves necesarias para operar el bot. Revisa TELEGRAM_GROUP_ID, OPENAI_API_KEY y CURAIME_BOT_KEY en claves.py.")
+    raise print(f"❌ Error: Faltan claves necesarias para operar el bot. Revisa TELEGRAM_GROUP_ID, OPENAI_API_KEY, CURAIME_BOT_KEY, AUTHORIZATION_TOKEN en claves.py.")
 os.environ["TELEGRAM_GROUP_ID"] = TELEGRAM_GROUP_ID
 os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 os.environ["CURAIME_BOT_KEY"] = CURAIME_BOT_KEY
+os.environ["AUTHORIZATION_TOKEN"] = AUTHORIZATION_TOKEN
 openai.api_key = OPENAI_API_KEY
 
 # Etapas de conversación
@@ -285,7 +286,7 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Validar ubicación con la API PRE antes de pedir foto/video
     try:
         payload = {
-            "service_id": "591b36544e4ea839018b4653",  # Usar la ID de la subcategoría o una por defecto
+            "service_id": "591b36544e4ea839018b4653", 
             "description": descripcion_es,
             "position": {
                 "lat": datos["latitud"],
@@ -295,7 +296,7 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         }
         headers = {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer Yjk1MWRiZWVlN2Y4YmRkNmI2NTNkNjU2OGYyYjNlYTJjNzBiNjg0YzllN2Q1M2Q3N2IzYmY3NjcxZGI4ZGZiOA'
+            'Authorization': 'Bearer ' + AUTHORIZATION_TOKEN,
         }
         url = "https://servpubpre.madrid.es/AVSICAPIINT/requests?jurisdiction_id=es.madrid&return_data=false"
         response = requests.post(url, headers=headers, json=payload)
@@ -489,7 +490,7 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         headers = {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer 1234'
+            'Authorization': 'Bearer ' + AUTHORIZATION_TOKEN
         }
 
         url = "https://servpubpre.madrid.es/AVSICAPIINT/requests?jurisdiction_id=es.madrid&return_data=false"
