@@ -6,20 +6,20 @@ Este bot de Telegram está diseñado para facilitar la comunicación entre los c
 
 ## Características principales
 
-- Multilingüe: responde en español, inglés, francés, alemán, chino o portugués según la preferencia del usuario. El usuario puede cambiar el idioma en cualquier momento enviando el nombre del idioma (por ejemplo, "español", "inglés", etc.).
-- Clasificación automática: utiliza OpenAI para clasificar los mensajes como "aviso" (incidencia) o "petición" (solicitud de mejora), y asigna la categoría y subcategoría correspondiente según los diccionarios oficiales del Ayuntamiento.
-- Conversación guiada: el bot guía al usuario paso a paso para enviar la ubicación y, opcionalmente, una foto o vídeo del problema.
-- Mensajes personalizados: todos los mensajes del flujo (confirmación, solicitud de ubicación, solicitud de foto/vídeo, seguimiento, errores, etc.) se muestran en el idioma seleccionado por el usuario.
+- Multilingüe: responde en español, inglés, francés, alemán, chino o portugués según la preferencia del usuario. El usuario puede cambiar el idioma en cualquier momento enviando el nombre del idioma (por ejemplo, "español", "inglés", etc.). El bot detecta automáticamente el idioma por palabras clave, saludos o, en su defecto, por detección automática, y adapta todos los mensajes a ese idioma, incluyendo los mensajes de ayuda y bienvenida.
+- Clasificación automática: utiliza OpenAI para clasificar los mensajes o fotos enviados al inicio de la conversación como "aviso" (incidencia) o "petición" (solicitud de mejora), y asigna la categoría y subcategoría correspondiente según los diccionarios oficiales del Ayuntamiento. Si el mensaje o la foto no pueden ser clasificados (por ejemplo, si el contenido es irrelevante, ambiguo o no reconocible), el bot responde automáticamente con un mensaje de ayuda multilingüe, informando al usuario de los idiomas soportados y cómo interactuar correctamente.
+- Conversación guiada: el usuario puede iniciar la conversación enviando un mensaje escrito o directamente una foto del problema. El bot guía al usuario paso a paso para enviar la ubicación y, si es necesario, una descripción adicional. Si la foto o el mensaje inicial no pueden ser clasificados, el bot solicita información adicional (nueva foto o descripción) en el idioma del usuario. Si tampoco puede clasificar la descripción, responde con el mensaje de ayuda multilingüe.
+- Mensajes personalizados: todos los mensajes del flujo (confirmación, solicitud de ubicación, solicitud de foto, seguimiento, errores, etc.) se muestran en el idioma seleccionado por el usuario. El sistema de mensajes es modular y configurable desde los diccionarios del bot, facilitando la extensión a nuevos idiomas o mensajes personalizados.
 - Envío a la plataforma municipal: los reportes se envían tanto a un grupo de Telegram como a la plataforma oficial del Ayuntamiento de Madrid.
-- Manejo de errores: mensajes claros si el reporte no se puede clasificar, si la ubicación está fuera de Madrid, o si hay errores en el envío.
+- Manejo de errores: mensajes claros si el reporte no se puede clasificar, si la ubicación está fuera de Madrid, o si hay errores en el envío. El flujo de ayuda y fallback está centralizado para garantizar respuestas útiles y coherentes en todos los idiomas soportados.
 
 ## Ejemplo de flujo de usuario
 
 1. El usuario inicia la conversación y puede cambiar el idioma enviando el nombre del idioma.
-2. El usuario describe un problema o hace una petición.
-3. El bot clasifica el mensaje y responde en el idioma seleccionado, indicando el tipo, categoría y subcategoría detectados.
+2. El usuario describe un problema, hace una petición o envía directamente una foto del incidente.
+3. El bot clasifica el mensaje o la foto y responde en el idioma seleccionado, indicando el tipo, categoría y subcategoría detectados. Si el contenido no puede ser clasificado, el bot responde con un mensaje de ayuda multilingüe adaptado al idioma detectado o preferido, o solicita información adicional (nueva foto o descripción).
 4. El bot solicita la ubicación del incidente.
-5. El bot solicita una foto, vídeo o permite omitir este paso.
+5. Si el usuario no ha enviado foto al inicio, el bot ofrece la opción de enviar una foto o continuar sin archivo. Si la foto no es clasificable, solicita otra foto o una descripción adicional. Si la descripción tampoco es clasificable, el bot responde con el mensaje de ayuda multilingüe.
 6. El bot envía el reporte al grupo de Telegram y a la plataforma municipal, mostrando un mensaje de seguimiento y confirmación en el idioma del usuario.
 
 ## Ejemplo de conversación
@@ -150,7 +150,7 @@ Recibe la ubicación del usuario, completa los datos del reporte y solicita una 
 Recibe la foto, video o la decisión de omitir del usuario. Luego, envía el reporte al grupo de Telegram y a la plataforma del Ayuntamiento.
 
 - **Entrada**: Foto, video o texto del usuario.
-- **Salida**: Confirmación de envío del reporte.
+- **Salida**: Confirmación de envío del reporte. Si la foto o vídeo no pueden ser clasificados, el bot solicita otra foto o una descripción adicional. Si la descripción tampoco es válida, responde con el mensaje de ayuda multilingüe, asegurando que el usuario siempre reciba una respuesta útil y clara en su idioma.
 
 ### 4. Configuración del Manejador de Conversación
 El manejador de conversación define los puntos de entrada, estados y salidas de la interacción con el bot.
@@ -181,10 +181,10 @@ if __name__ == '__main__':
 ```
 
 ## Flujo de Trabajo
-1. **Inicio**: El usuario envía un mensaje describiendo un problema o solicitud.
-2. **Clasificación**: El mensaje se analiza y clasifica como "aviso" o "petición".
+1. **Inicio**: El usuario envía un mensaje describiendo un problema, una petición o directamente una foto del incidente.
+2. **Clasificación**: El mensaje o la foto se analiza y clasifica como "aviso" o "petición". Si no es clasificable, el bot responde con un mensaje de ayuda multilingüe o solicita información adicional (nueva foto o descripción).
 3. **Ubicación**: El bot solicita la ubicación del incidente.
-4. **Media**: El bot solicita una foto, video o permite omitir.
+4. **Media**: Si el usuario no ha enviado foto/vídeo al inicio, el bot solicita una foto, vídeo o permite omitir. Si la foto no es clasificable, solicita otra foto o una descripción adicional. Si tampoco puede clasificar la descripción, responde con el mensaje de ayuda.
 5. **Envío**: El reporte se envía al grupo de Telegram y a la plataforma del Ayuntamiento.
 
 ## Detalles Técnicos
@@ -226,7 +226,7 @@ El bot incluye manejo de errores para:
 
 ## Pruebas unitarias
 
-El archivo `test_demo.py` incluye pruebas unitarias para la función de clasificación y el flujo principal del bot. Puedes ejecutarlas con:
+El archivo `test_demo.py` incluye pruebas unitarias para la función de clasificación y el flujo principal del bot. Las pruebas cubren tanto mensajes válidos como irrelevantes, así como el flujo multilingüe y el manejo de fotos no clasificables, validando que el bot responde siempre con el mensaje de ayuda adecuado cuando corresponde. Puedes ejecutarlas con:
 
 ```bash
 python -m unittest test_demo.py
