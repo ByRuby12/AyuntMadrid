@@ -244,15 +244,14 @@ async def manejar_foto_inicial(update: Update, context: ContextTypes.DEFAULT_TYP
         os.remove(file_path)
     except Exception:
         pass
-    # Validación reforzada: no avanzar si algún campo está vacío o es una cadena vacía
+    # Validación reforzada: no avanzar si algún campo está vacío
     if (
         not resultado or
-        not resultado.get("tipo") or not resultado.get("categoría") or not resultado.get("subcategoría") or
-        resultado.get("tipo", "").strip() == "" or resultado.get("categoría", "").strip() == "" or resultado.get("subcategoría", "").strip() == ""
+        not resultado.get("tipo") or not resultado.get("categoría") or not resultado.get("subcategoría")
     ):
         print("Imagen no clasificada correctamente. Pidiendo descripción al usuario.")
         await update.message.reply_text(
-            "No he podido reconocer el contenido de la foto. Puedes volver a intentarlo enviando otra foto o describiendo el problema:",
+            "No he podido reconocer el contenido de la foto. Por favor, describe brevemente el problema para poder clasificarlo:",
             parse_mode="Markdown"
         )
         context.user_data["esperando_descripcion_foto"] = True
@@ -339,7 +338,9 @@ async def analizar_imagen_con_openai(file_path: str):
         print("Error al analizar imagen con OpenAI:", e)
     return None
 
-# 1.3. Nuevo handler para recibir la descripción tras foto no detectada
+# ------------------------PASOS FINALES------------------------------
+
+# 2. Nuevo handler para recibir la descripción tras foto no detectada
 async def recibir_descripcion_foto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Si el usuario envía una foto, volver a intentar clasificarla
     if update.message.photo:
@@ -355,12 +356,7 @@ async def recibir_descripcion_foto(update: Update, context: ContextTypes.DEFAULT
             os.remove(file_path)
         except Exception:
             pass
-        # Validación reforzada: si sigue sin clasificar, volver a pedir indefinidamente
-        if (
-            not resultado or
-            not resultado.get("tipo") or not resultado.get("categoría") or not resultado.get("subcategoría") or
-            resultado.get("tipo", "").strip() == "" or resultado.get("categoría", "").strip() == "" or resultado.get("subcategoría", "").strip() == ""
-        ):
+        if not resultado or "tipo" not in resultado or "categoría" not in resultado or "subcategoría" not in resultado:
             print("Imagen no clasificada correctamente. Volver a pedir descripción o nueva foto.")
             await update.message.reply_text(
                 "No he podido reconocer el contenido de la foto. Puedes volver a intentarlo enviando otra foto o describiendo el problema:",
@@ -413,21 +409,11 @@ async def recibir_descripcion_foto(update: Update, context: ContextTypes.DEFAULT
             reply_markup=boton_ubicacion
         )
         return ESPERANDO_UBICACION
-    
-    # Validación reforzada para texto: si tampoco se puede clasificar, volver a pedir
-    resultado = await analizar_mensaje_con_openai(update.message.text)
-    if not resultado or not resultado.get("tipo") or not resultado.get("categoría") or not resultado.get("subcategoría") or resultado.get("tipo", "").strip() == "" or resultado.get("categoría", "").strip() == "" or resultado.get("subcategoría", "").strip() == "":
-        await update.message.reply_text(
-            "No he podido clasificar tu descripción. Por favor, intenta describir el problema de otra forma o envía una foto clara:",
-            parse_mode="Markdown"
-        )
-        return 1001
-    # Si el texto es válido, continuar flujo normal
+    # Si es texto, flujo normal: eliminar foto_inicial si existe (para que tras ubicación pida foto/video)
+    # Si es texto, flujo normal: eliminar foto_inicial si existe (para que tras ubicación pida foto/video)
     context.user_data.pop("foto_inicial", None)
     context.user_data.pop("esperando_descripcion_foto", None)
     return await manejar_mensaje(update, context)
-
-# ------------------------PASOS FINALES------------------------------
 
 # 3. Procesa la ubicación enviada por el usuario y pide foto/video si procede
 async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
