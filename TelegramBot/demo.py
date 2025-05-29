@@ -31,7 +31,9 @@ ESPERANDO_UBICACION, ESPERANDO_MEDIA = range(2)
 # Mensaje de sistema para OpenAI
 system_content_prompt = f"""
 Eres un asistente del Ayuntamiento de Madrid encargado de clasificar reportes ciudadanos.
-El usuario puede enviarte un mensaje de texto o una imagen (foto). Si recibes una imagen, analiza su contenido visual y clasifícala igual que harías con un mensaje de texto, siguiendo los mismos criterios y diccionarios.
+El usuario puede enviarte un mensaje de texto o una imagen (foto).
+
+🔎 Si recibes una imagen, analiza su contenido visual (no solo el nombre del archivo o metadatos). Si la imagen contiene texto visible, analízalo también. No asumas categorías por contexto externo, solo por lo que se observa visualmente en la imagen y lo que está en los diccionarios.
 
 Los reportes pueden ser de tipo 'aviso' (problemas o incidencias) o 'petición' (solicitudes de mejora).
 Debes analizar el mensaje o la imagen del usuario e identificar su tipo ('aviso' o 'petición'), una categoría y una subcategoría,
@@ -54,6 +56,7 @@ Categorías y subcategorías para PETICIONES:
 - NO asumas el tipo por palabras como 'solicito', 'quiero', etc.
 - Si una subcategoría solo está en AVISOS, entonces el tipo debe ser 'aviso'.
 - Si está solo en PETICIONES, entonces el tipo debe ser 'petición'.
+- No inventes categorías ni subcategorías. Usa únicamente las que aparecen en los diccionarios proporcionados.
 
 🚫 ERROR COMÚN (NO LO COMETAS):
 - Mensaje: 'Solicito cubo de basura' → Subcategoría: 'Nuevo cubo o contenedor' (está en AVISOS) → Tipo correcto: 'aviso' (¡NO 'petición'!).
@@ -61,7 +64,7 @@ Categorías y subcategorías para PETICIONES:
 ⚠️ RESPUESTA: Devuelve solo un JSON válido en este formato:
 {{"tipo": "aviso", "categoría": "Alumbrado Público", "subcategoría": "Calle Apagada"}}
 
-Si no puedes clasificar el mensaje o la imagen, responde con un JSON vacío: {{}}
+Si la imagen o el mensaje no permiten identificar de forma clara y visual una categoría y subcategoría exacta de los diccionarios, responde con un JSON vacío: {{}}
 No incluyas ningún texto adicional. Solo el JSON.
 """
 
@@ -458,7 +461,6 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     datos["usuario"] = update.message.from_user.full_name
     datos["fecha"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # Traducir descripción al español si es necesario
     descripcion_original = datos["descripcion"]
     descripcion_es = await traducir_a_espanol(descripcion_original, idioma)
     datos["descripcion_es"] = descripcion_es
@@ -484,7 +486,6 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
             response_data = response.json()
         except Exception:
             response_data = {}
-        # Si el error es por zona fuera de Madrid, cancelar aquí
         if (
             isinstance(response_data, dict)
             and response_data.get("error_msg")
@@ -505,59 +506,13 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print(f"Error validando ubicación con la API PRE: {e}")
         await update.message.reply_text(textos['ayto_error'], reply_markup=ReplyKeyboardRemove())
         return ConversationHandler.END
-    
     print(f"DESCRIPCIÓN EN ESPAÑOL: {descripcion_es}")
 
     # --- FLUJO INTELIGENTE FOTO/TEXTO ---
     if datos.get("foto_inicial"):
         # Si ya hay una foto válida, hacer POST y enviar al grupo directamente
         archivo = datos["foto_inicial"]
-        tipo_media = "foto"
-        mensaje_grupo = (
-            f"📢 Nuevo {datos['tipo'].upper()} recibido:\n\n"
-            f"👤 Usuario: {datos['usuario']}\n"
-            f"🗓 Fecha: {datos['fecha']}\n"
-            f"📄 Descripción: {descripcion_es}\n"
-            f"📌 Tipo: {datos['tipo']}\n"
-            f"📂 Categoría: {datos['categoria']}\n"
-            f"🔖 Subcategoría: {datos['subcategoria']}\n"
-            f"📍 Ubicación: https://maps.google.com/?q={datos['latitud']},{datos['longitud']}"
-        )
-        print(f"―――――――――――――――――――――――――――――――――――――")
-        print("📢 Nuevo", datos['tipo'].upper(), "recibido:")
-        print("👤 Usuario:", datos['usuario'])
-        print("📆 Fecha:", datos['fecha'])
-        print("📄 Descripción:", descripcion_es)
-        print("📌 Tipo:", datos['tipo'])
-        print("📂 Categoría:", datos['categoria'])
-        print("🔖 Subcategoría:", datos['subcategoria'])
-        print("🔖 ID Subcategoría:", datos['id_subcategoria'])
-        print("📍 Ubicación: https://maps.google.com/?q=" + str(datos['latitud']) + "," + str(datos['longitud']), "\n")
-        print("Enviando mensaje al grupo con multimedia (foto inicial)")
-        print(f"╚―――――――――――――――――――――――――――――――――――――")        
-        try:
-            descripcion_original = datos.get("descripcion", "")
-            # USAR LA FUNCIÓN DE POST COMPLETO IGUAL QUE EN recibir_media
-            service_request_id, respuesta = await enviar_reporte_completo_ayuntamiento(
-                datos, textos, descripcion_es, descripcion_original, context, update
-            )
-            if service_request_id is None:
-                return ConversationHandler.END
-            await context.bot.send_photo(
-                chat_id=TELEGRAM_GROUP_ID,
-                photo=archivo,
-                caption=mensaje_grupo,
-                parse_mode="Markdown"
-            )
-            await update.message.reply_text(respuesta, parse_mode="Markdown")
-            await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-            await asyncio.sleep(3)
-            await update.message.reply_text(textos['sent'])
-        except Exception as e:
-            print(f"❌ Error al enviar al grupo con foto inicial: {e}")
-            await update.message.reply_text(textos['ayto_error'])
-        return ConversationHandler.END
-    # Si NO hay foto_inicial, seguir el flujo normal y pedir foto/video
+        return await enviar_reporte_final(datos, textos, descripcion_es, descripcion_original, context, update, tipo_media="foto", archivo=archivo)
     else:
         await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
         await asyncio.sleep(3)
@@ -591,7 +546,6 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     archivo = None
     tipo_media = None
-
     skip_text = textos.get('skip_button', 'Omitir')
 
     if update.message.photo:
@@ -609,123 +563,129 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(textos['media_error'])
             return ESPERANDO_MEDIA
 
-    # Usar la descripción en español solo para el mensaje de seguimiento y consola, pero el POST debe llevar el original
     descripcion_es = datos.get("descripcion_es", datos.get("descripcion", ""))
     descripcion_original = datos.get("descripcion", "")
+    return await enviar_reporte_final(datos, textos, descripcion_es, descripcion_original, context, update, tipo_media=tipo_media, archivo=archivo)
 
-    mensaje_grupo = (
-        f"📢 Nuevo {datos['tipo'].upper()} recibido:\n\n"
-        f"👤 Usuario: {datos['usuario']}\n"
-        f"🗓 Fecha: {datos['fecha']}\n"
-        f"📄 Descripción: {descripcion_es}\n"
-        f"📌 Tipo: {datos['tipo']}\n"
-        f"📂 Categoría: {datos['categoria']}\n"
-        f"🔖 Subcategoría: {datos['subcategoria']}\n"
-        f"📍 Ubicación: https://maps.google.com/?q={datos['latitud']},{datos['longitud']}"
-    )
+# Función unificada para enviar el reporte a la API municipal y al grupo de Telegram
+async def enviar_reporte_final(datos, textos, descripcion_es, descripcion_original, context, update, tipo_media=None, archivo=None):
 
-    print(f"―――――――――――――――――――――――――――――――――――――")
-    print("📢 Nuevo", datos['tipo'].upper(), "recibido:")
-    print("👤 Usuario:", datos['usuario'])
-    print("📆 Fecha:", datos['fecha'])
-    print("📄 Descripción:", descripcion_es)
-    print("📌 Tipo:", datos['tipo'])
-    print("📂 Categoría:", datos['categoria'])
-    print("🔖 Subcategoría:", datos['subcategoria'])
-    print("🔖 ID Subcategoría:", datos['id_subcategoria'])
-    print("📍 Ubicación: https://maps.google.com/?q=" + str(datos['latitud']) + "," + str(datos['longitud']), "\n")
-    print("Enviando mensaje al grupo con" + (" multimedia" if tipo_media != "omitido" else " sin multimedia"))
-    print(f"╚―――――――――――――――――――――――――――――――――――――")
-
-    # Enviar a la Plataforma del Ayuntamiento
     try:
-        payload = {
-            "service_id": "591b36544e4ea839018b4653",  # Usar la ID de la subcategoría
-            "description": descripcion_es,  # Descripción ORIGINAL del usuario
-            "position": {
-               "lat": datos["latitud"],
-               "lng": datos["longitud"],
-                "location_additional_data": [
+        print("―――――――――――――――――――――――――――――――――――――\n")
+        print("📢 Nuevo", datos['tipo'].upper(), "recibido:")
+        print("👤 Usuario:", datos['usuario'])
+        print("📆 Fecha:", datos['fecha'])
+        print("📄 Descripción:", descripcion_es)
+        print("📌 Tipo:", datos['tipo'])
+        print("📂 Categoría:", datos['categoria'])
+        print("🔖 Subcategoría:", datos['subcategoria'])
+        print("🔖 ID Subcategoría:", datos.get('id_subcategoria'))
+        print("📍 Ubicación: https://maps.google.com/?q=" + str(datos['latitud']) + "," + str(datos['longitud']), "\n")
+        if tipo_media == "foto":
+            print("Enviando mensaje al grupo con multimedia (foto inicial)")
+        elif tipo_media == "video":
+            print("Enviando mensaje al grupo con multimedia (video)")
+        else:
+            print("Enviando mensaje al grupo sin multimedia")
+        print(f"╚―――――――――――――――――――――――――――――――――――――")
+        
+        # Payload completo si hay datos extendidos, si no, el simple
+        if 'latitud' in datos and 'longitud' in datos and 'usuario' in datos and 'fecha' in datos:
+            payload = {
+                "service_id": "591b36544e4ea839018b4653",
+                "description": descripcion_es,
+                "position": {
+                    "lat": datos["latitud"],
+                    "lng": datos["longitud"],
+                    "location_additional_data": [
+                        {
+                            "question": "5e49c26b6d4af6ac018b4623",
+                            "value": "Avenida"
+                        },
+                        {
+                            "question": "5e49c26b6d4af6ac018b4624",
+                            "value": "Brasil"
+                        },
+                        {
+                            "question": "5e49c26b6d4af6ac018b4625",
+                            "value": "5"
+                        },
+                        {
+                            "question": "5e49c26b6d4af6ac018b4627",
+                            "value": 28020
+                        },
+                        {
+                            "question": "5e49c26b6d4af6ac018b4628",
+                            "value": "Cuatro Caminos"
+                        },
+                        {
+                            "question": "5e49c26b6d4af6ac018b4629",
+                            "value": "Tetuan"
+                        },
+                        {
+                            "question": "5e49c26b6d4af6ac018b462a",
+                            "value": 6
+                        },
+                        {
+                            "question": "5e49c26b6d4af6ac018b462b",
+                            "value": 2
+                        },
+                        {
+                            "question": "5e49c26b6d4af6ac018b462d",
+                            "value": 441155.2
+                        },
+                        {
+                            "question": "5e49c26b6d4af6ac018b462e",
+                            "value": 4478434.5
+                        },
+                        {
+                            "question": "5e49c26b6d4af6ac018b4633",
+                            "value": 20011240
+                        },
+                        {
+                            "question": "5e49c26b6d4af6ac018b462f",
+                            "value": 441182.22
+                        },
+                        {
+                            "question": "5e49c26b6d4af6ac018b4630",
+                            "value": 4478435.6
+                        },
+                        {
+                            "question": "5e49c26b6d4af6ac018b4632",
+                            "value": 114200
+                        },
+                        {
+                            "question": "5e49c26b6d4af6ac018b4631",
+                            "value": "Oeste"
+                        }
+                    ]
+                },
+                "address_string": "Calle Mayor, 12",
+                "device_type": "5922cfab4e4ea823178b4568",
+                "additionalData": [
                     {
-                        "question": "5e49c26b6d4af6ac018b4623",  # TIPO DE VIA
-                        "value": "Avenida"
-                    },
-                    {
-                        "question": "5e49c26b6d4af6ac018b4624",  # NOMBRE DE VIA 
-                        "value": "Brasil"
-                    },
-                    {
-                        "question": "5e49c26b6d4af6ac018b4625",  # NUMERO DE VIA
-                        "value": "5"
-                    },
-                    {
-                        "question": "5e49c26b6d4af6ac018b4627",  # CODIGO POSTAL
-                        "value": 28020
-                    },
-                    {
-                        "question": "5e49c26b6d4af6ac018b4628",  # NOMBRE DEL BARRIO
-                        "value": "Cuatro Caminos"
-                    },
-                    {
-                        "question": "5e49c26b6d4af6ac018b4629",  # NOMBRE DISTRITO
-                        "value": "Tetuan"
-                    },
-                    {
-                        "question": "5e49c26b6d4af6ac018b462a",  # CODIGO DEL DISTRITO
-                        "value": 6
-                    },
-                    {
-                        "question": "5e49c26b6d4af6ac018b462b",  # CODIGO DEL BARRIO
-                        "value": 2
-                    },
-                    {
-                        "question": "5e49c26b6d4af6ac018b462d",  # COORDENADA DE X DEL NDP
-                        "value": 441155.2
-                    },
-                    {
-                        "question": "5e49c26b6d4af6ac018b462e",  # Coordenada Y del NDP
-                        "value": 4478434.5
-                    },
-                    {
-                        "question": "5e49c26b6d4af6ac018b4633",  # Id ndp
-                        "value": 20011240
-                    },
-                    {
-                        "question": "5e49c26b6d4af6ac018b462f",  # Coordenada X del reporte
-                        "value": 441182.22
-                    },
-                    {
-                        "question": "5e49c26b6d4af6ac018b4630",  # Coordenada Y del reporte
-                        "value": 4478435.6
-                    },
-                    {
-                        "question": "5e49c26b6d4af6ac018b4632",  # Id de la via
-                        "value": 114200
-                    },
-                    {
-                        "question": "5e49c26b6d4af6ac018b4631",  # orientación
-                        "value": "Oeste"
+                        "question": "5e49c26b6d4af6ac018b45d2",
+                        "value": "Malos olores"
                     }
                 ]
-            },
-            "address_string": "Calle Mayor, 12",  # Dirección de ejemplo
-            "device_type": "5922cfab4e4ea823178b4568",  # Optional
-            "additionalData": [
-                {
-                    "question": "5e49c26b6d4af6ac018b45d2",  # ¿Cual es el problema?
-                    "value": "Malos olores"
-                }
-            ]
-        }
-
+            }
+        else:
+            payload = {
+                "service_id": "591b36544e4ea839018b4653",
+                "description": descripcion_es,
+                "position": {
+                    "lat": datos["latitud"],
+                    "lng": datos["longitud"]
+                },
+                "address_string": "Calle Mayor, 12"
+            }
         headers = {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ' + AUTHORIZATION_TOKEN
         }
-
         url = "https://servpubpre.madrid.es/AVSICAPIINT/requests?jurisdiction_id=es.madrid&return_data=false"
-        
         response = requests.post(url, headers=headers, json=payload)
+        
         try:
             response_data = response.json()
             service_request_id = response_data.get("service_request_id", "No disponible")
@@ -733,30 +693,25 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
             service_request_id = "No disponible"
         print(f"╔――――Respuesta del servidor: {response.text}")
         print(f"╚―――――――――――――――――――――――――――――――――――――")
-        if (
-            isinstance(response_data, dict)
-            and response_data.get("error_msg")
-            and "Coordinates do not have a valid zones" in response.text
-        ):
-            await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-            await asyncio.sleep(2)
-            await update.message.reply_text(
-                textos['out_of_madrid'],
-                parse_mode="Markdown",
-                reply_markup=ReplyKeyboardRemove()
-            )
-            context.user_data.clear()
-            return None, None
-
-        # Si todo es correcto, enviar el mensaje al grupo de Telegram
-        if tipo_media == "foto":
+        
+        mensaje_grupo = (
+            f"📢 Nuevo {datos['tipo'].upper()} recibido:\n\n"
+            f"👤 Usuario: {datos['usuario']}\n"
+            f"🗓 Fecha: {datos['fecha']}\n"
+            f"📄 Descripción: {descripcion_es}\n"
+            f"📌 Tipo: {datos['tipo']}\n"
+            f"📂 Categoría: {datos['categoria']}\n"
+            f"🔖 Subcategoría: {datos['subcategoria']}\n"
+            f"📍 Ubicación: https://maps.google.com/?q={datos['latitud']},{datos['longitud']}"
+        )
+        if tipo_media == "foto" and archivo:
             await context.bot.send_photo(
                 chat_id=TELEGRAM_GROUP_ID,
                 photo=archivo,
                 caption=mensaje_grupo,
                 parse_mode="Markdown"
             )
-        elif tipo_media == "video":
+        elif tipo_media == "video" and archivo:
             await context.bot.send_video(
                 chat_id=TELEGRAM_GROUP_ID,
                 video=archivo,
@@ -769,7 +724,6 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text=mensaje_grupo,
                 parse_mode="Markdown"
             )
-
         respuesta = textos['followup'].format(
             service_request_id=service_request_id,
             usuario=datos['usuario'],
@@ -780,204 +734,16 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
             longitud=datos['longitud'],
             descripcion=descripcion_original
         )
-
         await update.message.reply_text(respuesta, parse_mode="Markdown")
         await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
         await asyncio.sleep(3)
         await update.message.reply_text(textos['sent'])
-
     except Exception as e:
-        print(f"❌ Error al enviar a la plataforma del ayuntamiento: {e}")
+        print(f"❌ Error al enviar reporte final: {e}")
         await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
         await asyncio.sleep(3)
         await update.message.reply_text(textos['ayto_error'])
     return ConversationHandler.END
-
-# Función auxiliar para enviar el reporte a la API municipal y devolver el número de seguimiento y mensaje de confirmación
-async def enviar_reporte_ayuntamiento_y_confirmar(datos, textos, descripcion_es, descripcion_original, context, update):
-    """
-    Envía el reporte a la API municipal y devuelve el número de seguimiento y el mensaje de confirmación.
-    """
-    service_request_id = "No disponible"
-    try:
-        payload = {
-            "service_id": "591b36544e4ea839018b4653",
-            "description": descripcion_es,
-            "position": {
-                "lat": datos["latitud"],
-                "lng": datos["longitud"]
-            },
-            "address_string": "Calle Mayor, 12"
-        }
-        headers = {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + AUTHORIZATION_TOKEN,
-        }
-        url = "https://servpubpre.madrid.es/AVSICAPIINT/requests?jurisdiction_id=es.madrid&return_data=false"
-        response = requests.post(url, headers=headers, json=payload)
-        try:
-            response_data = response.json()
-            service_request_id = response_data.get("service_request_id", "No disponible")
-        except Exception:
-            service_request_id = "No disponible"
-        # Comprobar si el error es por zona fuera de Madrid
-        if (
-            isinstance(response_data, dict)
-            and response_data.get("error_msg")
-            and "Coordinates do not have a valid zones" in response.text
-        ):
-            await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-            await asyncio.sleep(2)
-            await update.message.reply_text(
-                textos['out_of_madrid'],
-                parse_mode="Markdown",
-                reply_markup=ReplyKeyboardRemove()
-            )
-            context.user_data.clear()
-            return None, None
-    except Exception as e:
-        print(f"Error enviando a la API municipal: {e}")
-        await update.message.reply_text(textos['ayto_error'], reply_markup=ReplyKeyboardRemove())
-        return None, None
-    respuesta = textos['followup'].format(
-        service_request_id=service_request_id,
-        usuario=datos['usuario'],
-        tipo=datos['tipo'].capitalize(),
-        categoria=datos['categoria'],
-        subcategoria=datos['subcategoria'],
-        latitud=datos['latitud'],
-        longitud=datos['longitud'],
-        descripcion=descripcion_original
-    )
-    return service_request_id, respuesta
-
-# Función auxiliar para enviar el reporte COMPLETO a la API municipal y devolver el número de seguimiento y mensaje de confirmación
-async def enviar_reporte_completo_ayuntamiento(datos, textos, descripcion_es, descripcion_original, context, update):
-    """
-    Envía el reporte completo a la API municipal (con todos los campos) y devuelve el número de seguimiento y el mensaje de confirmación.
-    """
-    service_request_id = "No disponible"
-    try:
-        payload = {
-            "service_id": "591b36544e4ea839018b4653",
-            "description": descripcion_es,
-            "position": {
-                "lat": datos["latitud"],
-                "lng": datos["longitud"],
-                "location_additional_data": [
-                    {
-                        "question": "5e49c26b6d4af6ac018b4623",
-                        "value": "Avenida"
-                    },
-                    {
-                        "question": "5e49c26b6d4af6ac018b4624",
-                        "value": "Brasil"
-                    },
-                    {
-                        "question": "5e49c26b6d4af6ac018b4625",
-                        "value": "5"
-                    },
-                    {
-                        "question": "5e49c26b6d4af6ac018b4627",
-                        "value": 28020
-                    },
-                    {
-                        "question": "5e49c26b6d4af6ac018b4628",
-                        "value": "Cuatro Caminos"
-                    },
-                    {
-                        "question": "5e49c26b6d4af6ac018b4629",
-                        "value": "Tetuan"
-                    },
-                    {
-                        "question": "5e49c26b6d4af6ac018b462a",
-                        "value": 6
-                    },
-                    {
-                        "question": "5e49c26b6d4af6ac018b462b",
-                        "value": 2
-                    },
-                    {
-                        "question": "5e49c26b6d4af6ac018b462d",
-                        "value": 441155.2
-                    },
-                    {
-                        "question": "5e49c26b6d4af6ac018b462e",
-                        "value": 4478434.5
-                    },
-                    {
-                        "question": "5e49c26b6d4af6ac018b4633",
-                        "value": 20011240
-                    },
-                    {
-                        "question": "5e49c26b6d4af6ac018b462f",
-                        "value": 441182.22
-                    },
-                    {
-                        "question": "5e49c26b6d4af6ac018b4630",
-                        "value": 4478435.6
-                    },
-                    {
-                        "question": "5e49c26b6d4af6ac018b4632",
-                        "value": 114200
-                    },
-                    {
-                        "question": "5e49c26b6d4af6ac018b4631",
-                        "value": "Oeste"
-                    }
-                ]
-            },
-            "address_string": "Calle Mayor, 12",
-            "device_type": "5922cfab4e4ea823178b4568",
-            "additionalData": [
-                {
-                    "question": "5e49c26b6d4af6ac018b45d2",
-                    "value": "Malos olores"
-                }
-            ]
-        }
-        headers = {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + AUTHORIZATION_TOKEN
-        }
-        url = "https://servpubpre.madrid.es/AVSICAPIINT/requests?jurisdiction_id=es.madrid&return_data=false"
-        response = requests.post(url, headers=headers, json=payload)
-        try:
-            response_data = response.json()
-            service_request_id = response_data.get("service_request_id", "No disponible")
-        except Exception:
-            service_request_id = "No disponible"
-        print(f"╔――――Respuesta del servidor: {response.text}")
-        print(f"╚―――――――――――――――――――――――――――――――――――――")
-        if (
-            isinstance(response_data, dict)
-            and response_data.get("error_msg")
-            and "Coordinates do not have a valid zones" in response.text
-        ):
-            await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-            await asyncio.sleep(2)
-            await update.message.reply_text(
-                textos['out_of_madrid'],
-                parse_mode="Markdown",
-                reply_markup=ReplyKeyboardRemove()
-            )
-            context.user_data.clear()
-            return None, None
-    except Exception as e:
-        print(f"Error enviando a la API municipal: {e}")
-        await update.message.reply_text(textos['ayto_error'], reply_markup=ReplyKeyboardRemove())
-        return None, None
-    respuesta = textos['followup'].format(
-        service_request_id=service_request_id,
-        usuario=datos['usuario'],
-        tipo=datos['tipo'].capitalize(),
-        categoria=datos['categoria'],
-        subcategoria=datos['subcategoria'],
-        latitud=datos['latitud'],
-        longitud=datos['longitud'],
-        descripcion=descripcion_original
-    )
-    return service_request_id, respuesta
 
 # Handler para recordar que debe enviar ubicación
 # Si el usuario no envía una ubicación, se le recuerda que debe hacerlo.

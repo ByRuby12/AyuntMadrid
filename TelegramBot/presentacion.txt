@@ -1,0 +1,120 @@
+# Presentación: Bot de Telegram para Reportes Ciudadanos
+
+--> https://prezi.com/view/CRfvtXegB28MHDjnmaMh/
+
+---
+
+## 1. Objetivo del Bot
+- Facilitar a los ciudadanos la comunicación de incidencias y peticiones sobre la ciudad de Madrid de forma sencilla y guiada.
+- Automatizar la recepción, clasificación y envío de reportes a los servicios municipales y a un grupo interno de Telegram.
+- Mejorar la eficiencia y trazabilidad en la gestión de incidencias urbanas.
+- Permitir la integración de inteligencia artificial para optimizar la atención ciudadana.
+
+---
+
+## 2. Arquitectura General
+- Desarrollado en Python con la librería `python-telegram-bot` para la gestión de la conversación.
+- Utiliza la API de OpenAI para comprensión y clasificación de mensajes e imágenes.
+- Se apoya en APIs municipales para validar ubicaciones y registrar reportes de forma oficial.
+- La conversación se gestiona mediante un sistema de estados y handlers, permitiendo flujos complejos y personalizados.
+- El sistema es modular, permitiendo la actualización de diccionarios y textos sin modificar el núcleo del bot.
+
+---
+
+## 3. Flujo de Interacción con el Usuario
+### a) Inicio de la conversación
+- El usuario puede iniciar el reporte enviando un mensaje de texto o una foto.
+- El bot detecta automáticamente el idioma del mensaje y lo traduce a español si es necesario, garantizando accesibilidad para turistas y residentes extranjeros.
+
+### b) Clasificación del reporte
+- El mensaje o la imagen se analiza con OpenAI para determinar:
+  - Tipo de reporte: **aviso** (incidencia) o **petición** (mejora).
+  - Categoría y subcategoría, según los diccionarios oficiales del Ayuntamiento.
+- Si la IA no puede clasificar el contenido, solicita una descripción adicional al usuario, asegurando la máxima precisión.
+
+### c) Solicitud de ubicación
+- Una vez clasificado el reporte, el bot solicita la ubicación del usuario mediante un botón de Telegram.
+- Valida que la ubicación esté dentro del municipio de Madrid usando una API municipal.
+- Si la ubicación no es válida, informa al usuario y finaliza el proceso, evitando reportes fuera de la jurisdicción.
+
+### d) Solicitud de archivo multimedia
+- Si el usuario no envió una foto al inicio, se le pide que envíe una foto o video del problema.
+- El usuario puede omitir este paso si lo desea, permitiendo flexibilidad en la interacción.
+
+### e) Envío y confirmación del reporte
+- El bot construye un mensaje con todos los datos recopilados, incluyendo nombre, fecha, descripción, ubicación y multimedia.
+- Envía el reporte a:
+  - La API municipal para su gestión oficial y registro en los sistemas del Ayuntamiento.
+  - Un grupo de Telegram interno para seguimiento y control por parte de los empleados municipales.
+- El usuario recibe una confirmación con el identificador del reporte y un mensaje de seguimiento, fomentando la transparencia.
+
+---
+
+## 4. Detalles Técnicos
+### a) Multilingüismo y traducción
+- El bot detecta automáticamente el idioma del mensaje (español, inglés, francés, alemán, etc.).
+- Si el mensaje no está en español, lo traduce usando OpenAI antes de procesarlo, garantizando la comprensión correcta.
+
+### b) Clasificación inteligente con IA
+- Utiliza modelos de OpenAI para analizar tanto texto como imágenes, permitiendo la clasificación incluso de fotos sin texto.
+- Solo acepta categorías y subcategorías oficiales, evitando errores de clasificación y asegurando la coherencia con los sistemas municipales.
+- Si la IA no puede clasificar, solicita más información al usuario, mejorando la tasa de éxito.
+
+### c) Validación de ubicación
+- Antes de registrar el reporte, valida que la ubicación proporcionada esté dentro de Madrid.
+- Utiliza una API municipal para esta validación, evitando reportes fuera de la ciudad.
+- Si la ubicación es inválida, informa al usuario y cancela el proceso, ahorrando recursos administrativos.
+
+### d) Manejo de archivos multimedia
+- Permite adjuntar fotos o videos al reporte, enriqueciendo la información para los gestores municipales.
+- Si el usuario no envía multimedia, puede omitir este paso, adaptándose a las posibilidades del ciudadano.
+
+### e) Seguridad y privacidad
+- Las claves y tokens sensibles se gestionan de forma segura y no se exponen en el código.
+- Se eliminan archivos temporales tras su uso para proteger la privacidad del usuario.
+- Se controla el flujo de la conversación para evitar estados inconsistentes y posibles errores.
+
+### f) Modularidad y mantenimiento
+- Los diccionarios de categorías y textos del bot están en archivos externos, facilitando su actualización.
+- El sistema permite añadir nuevos idiomas, categorías o integraciones con mínimos cambios en el código principal.
+
+---
+
+## 5. Gestión de Errores y Recordatorios
+- Si el usuario no envía la ubicación o el archivo multimedia cuando corresponde, el bot le recuerda que debe hacerlo, guiando la conversación de forma proactiva.
+- Si ocurre algún error en la comunicación con la API municipal o en la clasificación, se informa al usuario y se finaliza la conversación de forma segura.
+- El bot está preparado para manejar excepciones y evitar caídas inesperadas, garantizando robustez.
+- Se informa al usuario de los pasos a seguir en caso de error, mejorando la experiencia y reduciendo la frustración.
+
+---
+
+## 6. Beneficios para el Ayuntamiento
+- **Eficiencia:** Automatiza la recepción y clasificación de incidencias y peticiones, reduciendo la carga de trabajo manual.
+- **Calidad:** Reduce errores de clasificación y mejora la calidad de los reportes gracias al uso de IA y validaciones automáticas.
+- **Trazabilidad:** Permite un seguimiento ágil y centralizado desde Telegram y los sistemas municipales.
+- **Experiencia ciudadana:** Ofrece una experiencia guiada, multilingüe y accesible para todos los ciudadanos, incluyendo turistas.
+- **Escalabilidad:** El sistema puede adaptarse fácilmente a nuevas categorías, idiomas o integraciones futuras.
+- **Transparencia:** El usuario recibe confirmación y seguimiento de su reporte, aumentando la confianza en la administración.
+
+---
+
+## 7. Resumen Visual del Proceso
+1. El ciudadano inicia el reporte (texto o foto).
+2. El bot detecta idioma y clasifica usando IA.
+3. Solicita ubicación y valida que sea Madrid.
+4. Solicita foto/video si no se envió antes.
+5. Envía el reporte a la API municipal y al grupo de Telegram.
+6. Confirma al usuario y finaliza la conversación.
+
+---
+
+## 8. Conclusión
+- Herramienta moderna y eficiente para la gestión de incidencias urbanas.
+- Mejora la comunicación entre ciudadanos y Ayuntamiento.
+- Facilita la gestión interna y el seguimiento de los reportes.
+- Ejemplo de cómo la IA puede mejorar los servicios públicos.
+- El sistema está preparado para evolucionar y adaptarse a las necesidades futuras del Ayuntamiento y de la ciudadanía.
+
+---
+
+¿Dudas, sugerencias o quieres ver una demo en vivo?
