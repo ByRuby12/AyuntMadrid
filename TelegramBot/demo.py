@@ -1,5 +1,5 @@
 # -----------------------IMPORT LIBRERIAS---------------------------
-from diccionarios import AVISOS_PRUEBA, PETICIONES_PRUEBA, WELCOME_MESSAGES, BOT_TEXTS
+from diccionarios import AVISOS_PRUEBA, PETICIONES_PRUEBA, WELCOME_MESSAGES, BOT_TEXTS, system_content_prompt
 from claves import OPENAI_API_KEY, CURAIME_BOT_KEY, TELEGRAM_GROUP_ID, AUTHORIZATION_TOKEN
 from datetime import datetime
 from telegram import (Update, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, Location, InputFile)
@@ -17,7 +17,7 @@ import base64
 nest_asyncio.apply()
 
 # Configuración de claves
-if not (TELEGRAM_GROUP_ID and OPENAI_API_KEY and CURAIME_BOT_KEY):
+if not (TELEGRAM_GROUP_ID and OPENAI_API_KEY and CURAIME_BOT_KEY and AUTHORIZATION_TOKEN):
     raise print(f"❌ Error: Faltan claves necesarias para operar el bot. Revisa TELEGRAM_GROUP_ID, OPENAI_API_KEY, CURAIME_BOT_KEY, AUTHORIZATION_TOKEN en claves.py.")
 os.environ["TELEGRAM_GROUP_ID"] = TELEGRAM_GROUP_ID
 os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
@@ -28,49 +28,9 @@ openai.api_key = OPENAI_API_KEY
 # Etapas de conversación
 ESPERANDO_UBICACION, ESPERANDO_MEDIA = range(2)
 
-# Mensaje de sistema para OpenAI
-system_content_prompt = f"""
-Eres un asistente del Ayuntamiento de Madrid encargado de clasificar reportes ciudadanos.
-El usuario puede enviarte un mensaje de texto o una imagen (foto).
-
-🔎 Si recibes una imagen, analiza su contenido visual (no solo el nombre del archivo o metadatos). Si la imagen contiene texto visible, analízalo también. No asumas categorías por contexto externo, solo por lo que se observa visualmente en la imagen y lo que está en los diccionarios.
-
-Los reportes pueden ser de tipo 'aviso' (problemas o incidencias) o 'petición' (solicitudes de mejora).
-Debes analizar el mensaje o la imagen del usuario e identificar su tipo ('aviso' o 'petición'), una categoría y una subcategoría,
-siguiendo estrictamente los valores que aparecen en los diccionarios oficiales del Ayuntamiento.
-
-IMPORTANTE: El mensaje o la imagen del usuario puede estar relacionado con cualquier idioma (español, inglés, francés, alemán, etc). Debes traducir internamente si es necesario y responder SIEMPRE en español, usando los nombres de categoría y subcategoría tal como aparecen en los diccionarios.
-
-Cada categoría contiene una lista de subcategorías, y cada subcategoría tiene un campo "nombre" que debes usar como referencia exacta para clasificar.
-
-Aquí tienes el listado completo de categorías y subcategorías válidas:
-
-Categorías y subcategorías para AVISOS:
-{json.dumps(AVISOS_PRUEBA, indent=2, ensure_ascii=False)}
-
-Categorías y subcategorías para PETICIONES:
-{json.dumps(PETICIONES_PRUEBA, indent=2, ensure_ascii=False)}
-
-🔍 INSTRUCCIONES CRÍTICAS:
-- El tipo ('aviso' o 'petición') debe determinarse exclusivamente según en qué diccionario (AVISOS o PETICIONES) se encuentre la categoría y subcategoría.
-- NO asumas el tipo por palabras como 'solicito', 'quiero', etc.
-- Si una subcategoría solo está en AVISOS, entonces el tipo debe ser 'aviso'.
-- Si está solo en PETICIONES, entonces el tipo debe ser 'petición'.
-- No inventes categorías ni subcategorías. Usa únicamente las que aparecen en los diccionarios proporcionados.
-
-🚫 ERROR COMÚN (NO LO COMETAS):
-- Mensaje: 'Solicito cubo de basura' → Subcategoría: 'Nuevo cubo o contenedor' (está en AVISOS) → Tipo correcto: 'aviso' (¡NO 'petición'!).
-
-⚠️ RESPUESTA: Devuelve solo un JSON válido en este formato:
-{{"tipo": "aviso", "categoría": "Alumbrado Público", "subcategoría": "Calle Apagada"}}
-
-Si la imagen o el mensaje no permiten identificar de forma clara y visual una categoría y subcategoría exacta de los diccionarios, responde con un JSON vacío: {{}}
-No incluyas ningún texto adicional. Solo el JSON.
-"""
-
 # ------------------------FUNCIONES----------------------------------
 
-# Traduce un texto a español usando OpenAI si el idioma no es español
+# 1. Traduce un texto a español si es necesario
 async def traducir_a_espanol(texto, idioma_origen):
     if idioma_origen == 'es':
         return texto
@@ -90,241 +50,9 @@ async def traducir_a_espanol(texto, idioma_origen):
         print(f"Error traduciendo a español: {e}")
         return texto  # Si falla, devuelve el original
 
-# Envía una imagen a OpenAI Vision y clasifica según los diccionarios de avisos/peticiones.
-# Devuelve un dict con tipo, categoría y subcategoría, o None si no se puede clasificar.
-async def analizar_imagen_con_openai(file_path: str):
-    """
-    Envía una imagen a OpenAI Vision y clasifica según los diccionarios de avisos/peticiones.
-    Devuelve un dict con tipo, categoría y subcategoría, o None si no se puede clasificar.
-    """
-    try:
-        with open(file_path, "rb") as image_file:
-            image_bytes = image_file.read()
-            image_b64 = base64.b64encode(image_bytes).decode("utf-8")
-            image_data_url = f"data:image/jpeg;base64,{image_b64}"
-        response = await openai.ChatCompletion.acreate(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": system_content_prompt},
-                {"role": "user", "content": [
-                    {"type": "image_url", "image_url": {"url": image_data_url}}
-                ]}
-            ],
-            temperature=0.2
-        )
-        contenido = response["choices"][0]["message"]["content"]
-        resultado = json.loads(contenido)
-        if "tipo" in resultado and "categoría" in resultado and "subcategoría" in resultado:
-            return resultado
-    except Exception as e:
-        print("Error al analizar imagen con OpenAI:", e)
-    return None
+# ------------------------PRIMERA OPCION-----------------------------
 
-# Maneja la foto inicial enviada por el usuario. Descarga la foto, la clasifica con OpenAI y pide al usuario que envíe su ubicación.
-# Si no se puede clasificar, responde con mensajes fluidos.
-async def manejar_foto_inicial(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.message.from_user.id
-    idioma = 'es'  # Puedes mejorar esto detectando idioma por preferencia previa
-    textos = BOT_TEXTS.get(idioma, BOT_TEXTS['es'])
-    print(f"╔―――――――――――――――――――――――――――――――――――――")
-    print(f"Foto recibida de {user_id}")
-    # Descargar la foto
-    photo_file = await update.message.photo[-1].get_file()
-    file_path = f"temp_{user_id}.jpg"
-    await photo_file.download_to_drive(file_path)
-    # Clasificar imagen
-    resultado = await analizar_imagen_con_openai(file_path)
-    # Eliminar archivo temporal
-    try:
-        os.remove(file_path)
-    except Exception:
-        pass
-    if not resultado or "tipo" not in resultado or "categoría" not in resultado or "subcategoría" not in resultado:
-        print("Imagen no clasificada correctamente. Pidiendo descripción al usuario.")
-        await update.message.reply_text(
-            "No he podido reconocer el contenido de la foto. Por favor, describe brevemente el problema para poder clasificarlo:",
-            parse_mode="Markdown"
-        )
-        # Guardar en user_data que estamos esperando descripción tras foto fallida
-        context.user_data["esperando_descripcion_foto"] = True
-        return 1001  # Estado especial para descripción tras foto
-    tipo = resultado["tipo"]
-    categoria = resultado["categoría"]
-    subcategoria = resultado["subcategoría"]
-    print(f"Clasificado como: Tipo='{tipo}', Categoría='{categoria}', Subcategoría='{subcategoria}'")
-    id_subcategoria = None
-    fuente = AVISOS_PRUEBA if tipo.lower() == "aviso" else PETICIONES_PRUEBA
-    if categoria in fuente:
-        subcategorias = fuente[categoria]
-        if isinstance(subcategorias, dict):
-            for subcat_key, subcat_data in subcategorias.items():
-                if subcat_key.lower() == subcategoria.lower() or subcat_data["nombre"].lower() == subcategoria.lower():
-                    id_subcategoria = subcat_data["id"][0] if subcat_data["id"] else None
-                    break
-        elif isinstance(subcategorias, list):
-            for subcat_data in subcategorias:
-                if subcat_data["nombre"].lower() == subcategoria.lower():
-                    id_subcategoria = subcat_data["id"][0] if subcat_data["id"] else None
-                    break
-    context.user_data["reporte"] = {
-        "tipo": tipo,
-        "categoria": categoria,
-        "subcategoria": subcategoria,
-        "id_subcategoria": id_subcategoria,
-        "descripcion": "[Reporte iniciado por imagen]",
-        "foto_inicial": update.message.photo[-1].file_id  # Guardar la foto para no pedirla de nuevo
-    }
-    print("Esperando ubicación del usuario...")
-    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-    await asyncio.sleep(3)
-    await update.message.reply_text(
-        textos['detected'].format(tipo=tipo, categoria=categoria, subcategoria=subcategoria),
-        parse_mode="Markdown"
-    )
-    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-    await asyncio.sleep(3)
-    boton_ubicacion = ReplyKeyboardMarkup(
-        [[KeyboardButton("📍 Enviar ubicación", request_location=True)]],
-        one_time_keyboard=True,
-        resize_keyboard=True
-    )
-    await update.message.reply_text(
-        textos['send_location'],
-        reply_markup=boton_ubicacion
-    )
-    return ESPERANDO_UBICACION
-
-# Nuevo handler para recibir la descripción tras foto no detectada
-async def recibir_descripcion_foto(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Si el usuario envía una foto, volver a intentar clasificarla
-    if update.message.photo:
-        user_id = update.message.from_user.id
-        idioma = context.user_data.get("idioma", "es")
-        textos = BOT_TEXTS.get(idioma, BOT_TEXTS['es'])
-        print(f"Nueva foto recibida tras fallo de clasificación anterior de {user_id}")
-        photo_file = await update.message.photo[-1].get_file()
-        file_path = f"temp_{user_id}.jpg"
-        await photo_file.download_to_drive(file_path)
-        resultado = await analizar_imagen_con_openai(file_path)
-        try:
-            os.remove(file_path)
-        except Exception:
-            pass
-        if not resultado or "tipo" not in resultado or "categoría" not in resultado or "subcategoría" not in resultado:
-            print("Imagen no clasificada correctamente. Volver a pedir descripción o nueva foto.")
-            await update.message.reply_text(
-                "No he podido reconocer el contenido de la foto. Puedes volver a intentarlo enviando otra foto o describiendo el problema:",
-                parse_mode="Markdown"
-            )
-            return 1001
-        tipo = resultado["tipo"]
-        categoria = resultado["categoría"]
-        subcategoria = resultado["subcategoría"]
-        print(f"Clasificado como: Tipo='{tipo}', Categoría='{categoria}', Subcategoría='{subcategoria}'")
-        id_subcategoria = None
-        fuente = AVISOS_PRUEBA if tipo.lower() == "aviso" else PETICIONES_PRUEBA
-        if categoria in fuente:
-            subcategorias = fuente[categoria]
-            if isinstance(subcategorias, dict):
-                for subcat_key, subcat_data in subcategorias.items():
-                    if subcat_key.lower() == subcategoria.lower() or subcat_data["nombre"].lower() == subcategoria.lower():
-                        id_subcategoria = subcat_data["id"][0] if subcat_data["id"] else None
-                        break
-            elif isinstance(subcategorias, list):
-                for subcat_data in subcategorias:
-                    if subcat_data["nombre"].lower() == subcategoria.lower():
-                        id_subcategoria = subcat_data["id"][0] if subcat_data["id"] else None
-                        break
-        context.user_data["reporte"] = {
-            "tipo": tipo,
-            "categoria": categoria,
-            "subcategoria": subcategoria,
-            "id_subcategoria": id_subcategoria,
-            "descripcion": "[Reporte iniciado por imagen]",
-            "foto_inicial": update.message.photo[-1].file_id
-        }
-        print("Esperando ubicación del usuario...")
-        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-        await asyncio.sleep(3)
-        await update.message.reply_text(
-            textos['detected'].format(tipo=tipo, categoria=categoria, subcategoria=subcategoria),
-            parse_mode="Markdown"
-        )
-        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-        await asyncio.sleep(3)
-        boton_ubicacion = ReplyKeyboardMarkup(
-            [[KeyboardButton("📍 Enviar ubicación", request_location=True)]],
-            one_time_keyboard=True,
-            resize_keyboard=True
-        )
-        await update.message.reply_text(
-            textos['send_location'],
-            reply_markup=boton_ubicacion
-        )
-        return ESPERANDO_UBICACION
-    # Si es texto, flujo normal: eliminar foto_inicial si existe (para que tras ubicación pida foto/video)
-    context.user_data.pop("foto_inicial", None)
-    context.user_data.pop("esperando_descripcion_foto", None)
-    return await manejar_mensaje(update, context)
-
-# Envía el mensaje del usuario a OpenAI para analizarlo. Si detecta que es un aviso o petición con una categoría y subcategoría 
-# válidas (según los diccionarios que tienes), devuelve esa información estructurada. Si no es válido, devuelve None.
-async def analizar_mensaje_con_openai(mensaje_usuario: str):
-    print(f"Analizando mensaje: {mensaje_usuario}")
-
-    prompt = [
-        {"role": "system", "content": system_content_prompt},
-        {"role": "user", "content": mensaje_usuario}
-    ]
-
-    contenido = None  # Inicializar la variable para evitar errores
-
-    try:
-        response = await openai.ChatCompletion.acreate(
-            model="gpt-4o-mini",
-            messages=prompt,
-            temperature=0.2
-        )
-        contenido = response["choices"][0]["message"]["content"]  # Acceso correcto al contenido de la respuesta
-        print(f"Respuesta de OpenAI: {contenido}")
-
-        resultado = json.loads(contenido)
-
-        # Verificar si el resultado corresponde con una categoría y subcategoría válidas
-        if "tipo" in resultado and "categoría" in resultado and "subcategoría" in resultado:
-            tipo = resultado["tipo"]
-            categoria = resultado["categoría"]
-            subcategoria = resultado["subcategoría"]
-            print(f"Tipo: {tipo}, Categoría: {categoria}, Subcategoría: {subcategoria}")
-
-            # Verificamos si el tipo, categoría y subcategoría son válidos
-            fuente = AVISOS_PRUEBA if tipo.lower() == "aviso" else PETICIONES_PRUEBA
-            if categoria in fuente:
-                subcategorias = fuente[categoria]
-                if isinstance(subcategorias, dict):  # Si es un diccionario de subcategorías
-                    if subcategoria not in subcategorias:
-                        print(f"Subcategoría '{subcategoria}' no válida en la categoría '{categoria}'.")
-                        return None  # Si la subcategoría no es válida, devolvemos None
-                elif isinstance(subcategorias, list):  # Si es una lista de subcategorías
-                    if not any(subcat["nombre"].lower() == subcategoria.lower() for subcat in subcategorias):
-                        print(f"Subcategoría '{subcategoria}' no válida en la categoría '{categoria}'.")
-                        return None  # Si la subcategoría no es válida, devolvemos None
-            else:
-                print(f"Categoría '{categoria}' no válida para el tipo '{tipo}'.")
-                return None  # Si la categoría no es válida, devolvemos None
-            return resultado
-        else:
-            print("No se encontraron 'tipo', 'categoría' o 'subcategoría' en la respuesta de OpenAI.")
-    except Exception as e:
-        print("Error al analizar respuesta de OpenAI:", e)
-        if contenido:
-            print("Contenido recibido:", contenido)
-
-    return None
-
-# Recibe el mensaje del usuario y lo analiza con la función anterior. Si es válido, guarda la información en context.user_data, 
-# informa al usuario del tipo de reporte detectado y le pide que comparta su ubicación. Si no es válido, le muestra un mensaje 
-# explicando qué es un aviso o una petición.
+# 1.1. Procesa el mensaje del usuario y pide ubicación si es válido
 async def manejar_mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     mensaje = update.message.text
@@ -442,8 +170,266 @@ async def manejar_mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return ESPERANDO_UBICACION
 
-# Toma la ubicación enviada por el usuario, completa los datos del reporte (incluyendo nombre, fecha y coordenadas) y los envía a 
-# un grupo de Telegram formateados como mensaje. Luego confirma al usuario que el reporte ha sido enviado correctamente.
+# 1.2. Clasifica un mensaje de texto usando OpenAI
+async def analizar_mensaje_con_openai(mensaje_usuario: str):
+    print(f"Analizando mensaje: {mensaje_usuario}")
+
+    prompt = [
+        {"role": "system", "content": system_content_prompt},
+        {"role": "user", "content": mensaje_usuario}
+    ]
+
+    contenido = None  # Inicializar la variable para evitar errores
+
+    try:
+        response = await openai.ChatCompletion.acreate(
+            model="gpt-4o-mini",
+            messages=prompt,
+            temperature=0.2
+        )
+        contenido = response["choices"][0]["message"]["content"]  # Acceso correcto al contenido de la respuesta
+        print(f"Respuesta de OpenAI: {contenido}")
+
+        resultado = json.loads(contenido)
+
+        # Verificar si el resultado corresponde con una categoría y subcategoría válidas
+        if "tipo" in resultado and "categoría" in resultado and "subcategoría" in resultado:
+            tipo = resultado["tipo"]
+            categoria = resultado["categoría"]
+            subcategoria = resultado["subcategoría"]
+            print(f"Tipo: {tipo}, Categoría: {categoria}, Subcategoría: {subcategoria}")
+
+            # Verificamos si el tipo, categoría y subcategoría son válidos
+            fuente = AVISOS_PRUEBA if tipo.lower() == "aviso" else PETICIONES_PRUEBA
+            if categoria in fuente:
+                subcategorias = fuente[categoria]
+                if isinstance(subcategorias, dict):  # Si es un diccionario de subcategorías
+                    if subcategoria not in subcategorias:
+                        print(f"Subcategoría '{subcategoria}' no válida en la categoría '{categoria}'.")
+                        return None  # Si la subcategoría no es válida, devolvemos None
+                elif isinstance(subcategorias, list):  # Si es una lista de subcategorías
+                    if not any(subcat["nombre"].lower() == subcategoria.lower() for subcat in subcategorias):
+                        print(f"Subcategoría '{subcategoria}' no válida en la categoría '{categoria}'.")
+                        return None  # Si la subcategoría no es válida, devolvemos None
+            else:
+                print(f"Categoría '{categoria}' no válida para el tipo '{tipo}'.")
+                return None  # Si la categoría no es válida, devolvemos None
+            return resultado
+        else:
+            print("No se encontraron 'tipo', 'categoría' o 'subcategoría' en la respuesta de OpenAI.")
+    except Exception as e:
+        print("Error al analizar respuesta de OpenAI:", e)
+        if contenido:
+            print("Contenido recibido:", contenido)
+
+    return None
+
+# ------------------------SEGUNDA OPCION-----------------------------
+
+# 1.1 Procesa la foto inicial enviada por el usuario
+async def manejar_foto_inicial(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
+    idioma = 'es'  # Puedes mejorar esto detectando idioma por preferencia previa
+    textos = BOT_TEXTS.get(idioma, BOT_TEXTS['es'])
+    print(f"╔―――――――――――――――――――――――――――――――――――――")
+    print(f"Foto recibida de {user_id}")
+    # Descargar la foto
+    photo_file = await update.message.photo[-1].get_file()
+    file_path = f"temp_{user_id}.jpg"
+    await photo_file.download_to_drive(file_path)
+    # Clasificar imagen
+    resultado = await analizar_imagen_con_openai(file_path)
+    # Eliminar archivo temporal
+    try:
+        os.remove(file_path)
+    except Exception:
+        pass
+    # Validación reforzada: no avanzar si algún campo está vacío o es una cadena vacía
+    if (
+        not resultado or
+        not resultado.get("tipo") or not resultado.get("categoría") or not resultado.get("subcategoría") or
+        resultado.get("tipo", "").strip() == "" or resultado.get("categoría", "").strip() == "" or resultado.get("subcategoría", "").strip() == ""
+    ):
+        print("Imagen no clasificada correctamente. Pidiendo descripción al usuario.")
+        await update.message.reply_text(
+            "No he podido reconocer el contenido de la foto. Puedes volver a intentarlo enviando otra foto o describiendo el problema:",
+            parse_mode="Markdown"
+        )
+        context.user_data["esperando_descripcion_foto"] = True
+        return 1001  # Estado especial para descripción tras foto
+    tipo = resultado["tipo"]
+    categoria = resultado["categoría"]
+    subcategoria = resultado["subcategoría"]
+    descripcion = resultado.get("descripcion", "[Reporte iniciado por imagen]")
+    print(f"Clasificado como: Tipo='{tipo}', Categoría='{categoria}', Subcategoría='{subcategoria}'")
+    id_subcategoria = None
+    fuente = AVISOS_PRUEBA if tipo.lower() == "aviso" else PETICIONES_PRUEBA
+    if categoria in fuente:
+        subcategorias = fuente[categoria]
+        if isinstance(subcategorias, dict):
+            for subcat_key, subcat_data in subcategorias.items():
+                if subcat_key.lower() == subcategoria.lower() or subcat_data["nombre"].lower() == subcategoria.lower():
+                    id_subcategoria = subcat_data["id"][0] if subcat_data["id"] else None
+                    break
+        elif isinstance(subcategorias, list):
+            for subcat_data in subcategorias:
+                if subcat_data["nombre"].lower() == subcategoria.lower():
+                    id_subcategoria = subcat_data["id"][0] if subcat_data["id"] else None
+                    break
+    context.user_data["reporte"] = {
+        "tipo": tipo,
+        "categoria": categoria,
+        "subcategoria": subcategoria,
+        "id_subcategoria": id_subcategoria,
+        "descripcion": descripcion,
+        "foto_inicial": update.message.photo[-1].file_id  # Guardar la foto para no pedirla de nuevo
+    }
+    print("Esperando ubicación del usuario...")
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+    await asyncio.sleep(3)
+    await update.message.reply_text(
+        textos['detected'].format(tipo=tipo, categoria=categoria, subcategoria=subcategoria),
+        parse_mode="Markdown"
+    )
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+    await asyncio.sleep(3)
+    boton_ubicacion = ReplyKeyboardMarkup(
+        [[KeyboardButton("📍 Enviar ubicación", request_location=True)]],
+        one_time_keyboard=True,
+        resize_keyboard=True
+    )
+    await update.message.reply_text(
+        textos['send_location'],
+        reply_markup=boton_ubicacion
+    )
+    return ESPERANDO_UBICACION
+
+# 1.2. Clasifica una imagen y genera una descripción visual usando OpenAI
+async def analizar_imagen_con_openai(file_path: str):
+    """
+    Envía una imagen a OpenAI Vision y clasifica según los diccionarios de avisos/peticiones.
+    Devuelve un dict con tipo, categoría y subcategoría, y una descripción visual generada, o None si no se puede clasificar.
+    """
+    try:
+        with open(file_path, "rb") as image_file:
+            image_bytes = image_file.read()
+            image_b64 = base64.b64encode(image_bytes).decode("utf-8")
+            image_data_url = f"data:image/jpeg;base64,{image_b64}"
+        # Primer paso: pedir clasificación y descripción visual en la misma llamada
+        prompt = [
+            {"role": "system", "content": system_content_prompt},
+            {"role": "user", "content": [
+                {"type": "image_url", "image_url": {"url": image_data_url}},
+                {"type": "text", "text": "Por favor, además de clasificar la imagen según las instrucciones, genera una breve descripción visual en español de lo que se observa en la imagen, en un campo 'descripcion'. Si no puedes describirla, deja 'descripcion' como cadena vacía. Devuelve un JSON con los campos: tipo, categoría, subcategoría y descripcion."}
+            ]}
+        ]
+        response = await openai.ChatCompletion.acreate(
+            model="gpt-4o",
+            messages=prompt,
+            temperature=0.2
+        )
+        contenido = response["choices"][0]["message"]["content"]
+        resultado = json.loads(contenido)
+        if (
+            "tipo" in resultado and "categoría" in resultado and "subcategoría" in resultado
+            and "descripcion" in resultado
+        ):
+            return resultado
+    except Exception as e:
+        print("Error al analizar imagen con OpenAI:", e)
+    return None
+
+# 1.3. Nuevo handler para recibir la descripción tras foto no detectada
+async def recibir_descripcion_foto(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Si el usuario envía una foto, volver a intentar clasificarla
+    if update.message.photo:
+        user_id = update.message.from_user.id
+        idioma = context.user_data.get("idioma", "es")
+        textos = BOT_TEXTS.get(idioma, BOT_TEXTS['es'])
+        print(f"Nueva foto recibida tras fallo de clasificación anterior de {user_id}")
+        photo_file = await update.message.photo[-1].get_file()
+        file_path = f"temp_{user_id}.jpg"
+        await photo_file.download_to_drive(file_path)
+        resultado = await analizar_imagen_con_openai(file_path)
+        try:
+            os.remove(file_path)
+        except Exception:
+            pass
+        # Validación reforzada: si sigue sin clasificar, volver a pedir indefinidamente
+        if (
+            not resultado or
+            not resultado.get("tipo") or not resultado.get("categoría") or not resultado.get("subcategoría") or
+            resultado.get("tipo", "").strip() == "" or resultado.get("categoría", "").strip() == "" or resultado.get("subcategoría", "").strip() == ""
+        ):
+            print("Imagen no clasificada correctamente. Volver a pedir descripción o nueva foto.")
+            await update.message.reply_text(
+                "No he podido reconocer el contenido de la foto. Puedes volver a intentarlo enviando otra foto o describiendo el problema:",
+                parse_mode="Markdown"
+            )
+            return 1001
+        tipo = resultado["tipo"]
+        categoria = resultado["categoría"]
+        subcategoria = resultado["subcategoría"]
+        descripcion = resultado.get("descripcion", "[Reporte iniciado por imagen]")
+        print(f"Clasificado como: Tipo='{tipo}', Categoría='{categoria}', Subcategoría='{subcategoria}'")
+        id_subcategoria = None
+        fuente = AVISOS_PRUEBA if tipo.lower() == "aviso" else PETICIONES_PRUEBA
+        if categoria in fuente:
+            subcategorias = fuente[categoria]
+            if isinstance(subcategorias, dict):
+                for subcat_key, subcat_data in subcategorias.items():
+                    if subcat_key.lower() == subcategoria.lower() or subcat_data["nombre"].lower() == subcategoria.lower():
+                        id_subcategoria = subcat_data["id"][0] if subcat_data["id"] else None
+                        break
+            elif isinstance(subcategorias, list):
+                for subcat_data in subcategorias:
+                    if subcat_data["nombre"].lower() == subcategoria.lower():
+                        id_subcategoria = subcat_data["id"][0] if subcat_data["id"] else None
+                        break
+        context.user_data["reporte"] = {
+            "tipo": tipo,
+            "categoria": categoria,
+            "subcategoria": subcategoria,
+            "id_subcategoria": id_subcategoria,
+            "descripcion": descripcion,
+            "foto_inicial": update.message.photo[-1].file_id
+        }
+        print("Esperando ubicación del usuario...")
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+        await asyncio.sleep(3)
+        await update.message.reply_text(
+            textos['detected'].format(tipo=tipo, categoria=categoria, subcategoria=subcategoria),
+            parse_mode="Markdown"
+        )
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+        await asyncio.sleep(3)
+        boton_ubicacion = ReplyKeyboardMarkup(
+            [[KeyboardButton("📍 Enviar ubicación", request_location=True)]],
+            one_time_keyboard=True,
+            resize_keyboard=True
+        )
+        await update.message.reply_text(
+            textos['send_location'],
+            reply_markup=boton_ubicacion
+        )
+        return ESPERANDO_UBICACION
+    
+    # Validación reforzada para texto: si tampoco se puede clasificar, volver a pedir
+    resultado = await analizar_mensaje_con_openai(update.message.text)
+    if not resultado or not resultado.get("tipo") or not resultado.get("categoría") or not resultado.get("subcategoría") or resultado.get("tipo", "").strip() == "" or resultado.get("categoría", "").strip() == "" or resultado.get("subcategoría", "").strip() == "":
+        await update.message.reply_text(
+            "No he podido clasificar tu descripción. Por favor, intenta describir el problema de otra forma o envía una foto clara:",
+            parse_mode="Markdown"
+        )
+        return 1001
+    # Si el texto es válido, continuar flujo normal
+    context.user_data.pop("foto_inicial", None)
+    context.user_data.pop("esperando_descripcion_foto", None)
+    return await manejar_mensaje(update, context)
+
+# ------------------------PASOS FINALES------------------------------
+
+# 3. Procesa la ubicación enviada por el usuario y pide foto/video si procede
 async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ubicacion: Location = update.message.location
     datos = context.user_data.get("reporte", {})
@@ -530,9 +516,7 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return ESPERANDO_MEDIA
 
-# Envía el mensaje del usuario al grupo de Telegram con la información del reporte. Si el usuario envía una foto o video, lo adjunta al mensaje.
-# Si el usuario decide omitir el archivo, envía el mensaje sin multimedia. Luego confirma al usuario que el reporte ha sido enviado.
-# Finalmente, finaliza la conversación.
+# 4. Procesa la foto o video enviado por el usuario
 async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     datos = context.user_data.get("reporte", {})
     idioma = context.user_data.get("idioma", "es")
@@ -567,7 +551,7 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     descripcion_original = datos.get("descripcion", "")
     return await enviar_reporte_final(datos, textos, descripcion_es, descripcion_original, context, update, tipo_media=tipo_media, archivo=archivo)
 
-# Función unificada para enviar el reporte a la API municipal y al grupo de Telegram
+# 5. Envía el reporte a la API municipal y al grupo de Telegram
 async def enviar_reporte_final(datos, textos, descripcion_es, descripcion_original, context, update, tipo_media=None, archivo=None):
 
     try:
@@ -745,10 +729,9 @@ async def enviar_reporte_final(datos, textos, descripcion_es, descripcion_origin
         await update.message.reply_text(textos['ayto_error'])
     return ConversationHandler.END
 
-# Handler para recordar que debe enviar ubicación
-# Si el usuario no envía una ubicación, se le recuerda que debe hacerlo.
-# Si el usuario envía un texto, se le recuerda que debe enviar una ubicación o omitirlo.
-# Si el usuario envía un archivo multimedia, se le recuerda que debe enviar una ubicación o omitirlo.
+# ------------------------RECORDATORIO USUARIO PASOS-----------------
+
+# Recuerda al usuario que debe enviar ubicación
 async def recordar_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     idioma = context.user_data.get("idioma", "es")
     textos = BOT_TEXTS.get(idioma, BOT_TEXTS['es'])
@@ -761,9 +744,7 @@ async def recordar_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
     return ESPERANDO_UBICACION
 
-# Handler para recordar que debe enviar foto/video/omitir
-# Si el usuario no envía un archivo multimedia, se le recuerda que debe hacerlo.
-# Si el usuario envía un texto, se le recuerda que debe enviar un archivo multimedia o omitirlo.
+# Recuerda al usuario que debe enviar foto/video o puede omitir
 async def recordar_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     idioma = context.user_data.get("idioma", "es")
     textos = BOT_TEXTS.get(idioma, BOT_TEXTS['es'])
@@ -777,12 +758,9 @@ async def recordar_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return ESPERANDO_MEDIA
 
-# -------------------------MAIN---------------------------------------
+# -------------------------MANEJADOR MAIN----------------------------
 
-# Inicia el bot y configura el manejador de conversación para recibir mensajes y ubicaciones.
-# Cuando el usuario envía un mensaje, se analiza y se le pide la ubicación. Luego, se le pide que envíe una foto o video del problema.
-# Finalmente, se envía el reporte al grupo de Telegram y se confirma al usuario que su reporte ha sido enviado.
-
+# Inicia el bot y configura el manejador de conversación
 if __name__ == '__main__':
     app = ApplicationBuilder().token(CURAIME_BOT_KEY).build()    
     conversation_handler = ConversationHandler(

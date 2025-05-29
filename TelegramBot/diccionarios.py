@@ -1,4 +1,5 @@
 # DICCIONARIOS DE AVISOS, PETICIONES, TEXTOS Y MAS
+import json
 
 AVISOS_PRUEBA = {
     "Alumbrado Público": [
@@ -348,7 +349,7 @@ WELCOME_MESSAGES = {
         "📢​ Puedes realizar un reporte de dos formas sencillas:",
         "🔴 *Crear un aviso*: informa de un problema en tu barrio (ej: farola rota, suciedad...)",
         "🟢 *Realizar una petición*: solicita una mejora o algo nuevo (ej: más bancos, papeleras...)",
-        "✍️ Solo tienes que contarme tu problema o propuesta en un mensaje. Yo lo clasifico y lo envío al Ayuntamiento 🚀",
+        "✍️ Solo tienes que contarme tu problema o propuesta en un mensaje (para avisos o peticiones), o enviar una foto (solo para avisos). Yo lo clasifico y lo envío al Ayuntamiento 🚀",
         "🌐 Puedes hablarme en español, inglés, francés, alemán, chino o portugués. El bot detecta automáticamente el idioma y te responderá en ese idioma."
     ],
     'en': [
@@ -356,7 +357,7 @@ WELCOME_MESSAGES = {
         "📢​ You can make a report in two simple ways:",
         "🔴 *Create a notice*: report a problem in your neighborhood (e.g., broken streetlight, dirt...)",
         "🟢 *Make a request*: ask for an improvement or something new (e.g., more benches, bins...)",
-        "✍️ Just tell me your problem or proposal in a message. I will classify it and send it to the City Council 🚀",
+        "✍️ Just tell me your problem or proposal in a message (for notices or requests), or send a photo (only for notices). I will classify it and send it to the City Council 🚀",
         "🌐 You can talk to me in Spanish, English, French, German, Chinese or Portuguese. The bot will automatically detect your language and reply in that language."
     ],
     'fr': [
@@ -364,7 +365,7 @@ WELCOME_MESSAGES = {
         "📢​ Vous pouvez faire un signalement de deux manières simples:",
         "🔴 *Créer un avis*: signalez un problème dans votre quartier (ex: lampadaire cassé, saleté...)",
         "🟢 *Faire une demande*: demandez une amélioration ou quelque chose de nouveau (ex: plus de bancs, poubelles...)",
-        "✍️ Il vous suffit de me raconter votre problème ou proposition dans un message. Je le classerai et l'enverrai à la Mairie 🚀",
+        "✍️ Il vous suffit de me raconter votre problème ou proposition dans un message (pour avis ou demandes), ou d'envoyer une photo (seulement pour avis). Je le classerai et l'enverrai à la Mairie 🚀",
         "🌐 Vous pouvez me parler en espagnol, anglais, français, allemand, chinois ou portugais. Le bot détectera automatiquement la langue et vous répondra dans cette langue."
     ],
     'de': [
@@ -372,7 +373,7 @@ WELCOME_MESSAGES = {
         "📢​ Du kannst auf zwei einfache Arten einen Bericht erstellen:",
         "🔴 *Hinweis erstellen*: Melde ein Problem in deinem Viertel (z.B. kaputte Laterne, Schmutz...)",
         "🟢 *Anfrage stellen*: Fordere eine Verbesserung oder etwas Neues an (z.B. mehr Bänke, Mülleimer...)",
-        "✍️ Erzähl mir einfach dein Problem oder deinen Vorschlag in einer Nachricht. Ich klassifiziere es und sende es an die Stadtverwaltung 🚀",
+        "✍️ Erzähl mir einfach dein Problem oder deinen Vorschlag in einer Nachricht (für Hinweise oder Anfragen), oder sende ein Foto (nur für Hinweise). Ich klassifiziere es und sende es an die Stadtverwaltung 🚀",
         "🌐 Du kannst mit mir auf Spanisch, Englisch, Französisch, Deutsch, Chinesisch oder Portugiesisch sprechen. Der Bot erkennt deine Sprache automatisch und antwortet in dieser Sprache."
     ],
     'zh': [
@@ -380,7 +381,7 @@ WELCOME_MESSAGES = {
         "📢​ 你可以通过两种简单的方式进行报告：",
         "🔴 *创建通知*：报告你所在社区的问题（例如：路灯坏了、脏乱等）",
         "🟢 *提出请求*：请求改进或新增设施（例如：更多长椅、垃圾桶等）",
-        "✍️ 只需通过消息告诉我你的问题或建议。我会对其进行分类并发送给市政府 🚀",
+        "✍️ 只需通过消息告诉我你的问题或建议（用于通知或请求），或发送一张照片（仅用于通知）。我会对其进行分类并发送给市政府 🚀",
         "🌐 你可以用西班牙语、英语、法语、德语、中文或葡萄牙语与我交流。机器人会自动检测你的语言并用该语言回复你。"
     ],
     'pt': [
@@ -388,7 +389,7 @@ WELCOME_MESSAGES = {
         "📢​ Você pode fazer um relatório de duas formas simples:",
         "🔴 *Criar um aviso*: informe um problema no seu bairro (ex: poste quebrado, sujeira...)",
         "🟢 *Fazer um pedido*: solicite uma melhoria ou algo novo (ex: mais bancos, lixeiras...)",
-        "✍️ Basta me contar seu problema ou proposta em uma mensagem. Eu classifico e envio para a Câmara Municipal 🚀",
+        "✍️ Basta me contar seu problema ou proposta em uma mensagem (para avisos ou pedidos), ou enviar uma foto (apenas para avisos). Eu classifico e envio para a Câmara Municipal 🚀",
         "🌐 Você pode falar comigo em espanhol, inglês, francês, alemão, chinês ou português. O bot detecta automaticamente o idioma e responderá nesse idioma."
     ],
     'it': [
@@ -396,23 +397,23 @@ WELCOME_MESSAGES = {
         "📢​ Puoi fare una segnalazione in due semplici modi:",
         "🔴 *Crea una segnalazione*: segnala un problema nel tuo quartiere (es: lampione rotto, sporcizia...)",
         "🟢 *Fai una richiesta*: chiedi un miglioramento o qualcosa di nuovo (es: più panchine, cestini...)",
-        "✍️ Raccontami semplicemente il tuo problema o proposta in un messaggio. Lo classificherò e lo invierò al Comune 🚀",
-        "🌐 Puoi parlarmi in spagnolo, inglese, francese, tedesco, cinese, portoghese, italiano, arabo, russo o hindi. Il bot rileverà automaticamente la lingua e ti risponderà in quella lingua."
+        "✍️ Raccontami semplicemente il tuo problema o proposta in un messaggio (per segnalazioni o richieste), oppure invia una foto (solo per segnalazioni). Lo classificherò e lo invierò al Comune 🚀",
+        "🌐 Puoi parlarmi in spagnolo, inglese, francese, tedesco, cinese, portoghese, italiano, arabo, russo o हिंदी. Il bot rileverà automaticamente la lingua e ti risponderà in quella lingua."
     ],
     'ar': [
         "👋 مرحبًا! أنا الروبوت الرسمي لبلدية مدريد، هنا لمساعدتك في الإبلاغ عن أي مشكلة أو اقتراح حول المدينة🏛️",
         "📢​ يمكنك تقديم تقرير بطريقتين بسيطتين:",
         "🔴 *إنشاء إشعار*: أبلغ عن مشكلة في حيّك (مثال: مصباح شارع مكسور، قذارة...)",
         "🟢 *تقديم طلب*: اطلب تحسينًا أو شيئًا جديدًا (مثال: المزيد من المقاعد، سلال المهملات...)",
-        "✍️ فقط أخبرني بمشكلتك أو اقتراحك في رسالة. سأقوم بتصنيفه وإرساله إلى البلدية 🚀",
-        "🌐 يمكنك التحدث معي بالإسبانية أو الإنجليزية أو الفرنسية أو الألمانية أو الصينية أو البرتغالية أو الإيطالية أو العربية أو الروسية أو الهندية. سيكتشف الروبوت اللغة تلقائيًا ويرد بها."
+        "✍️ فقط أخبرني بمشكلتك أو اقتراحك في رسالة (للتنبيهات أو الطلبات)، أو أرسل صورة (فقط للتنبيهات). سأقوم بتصنيفه وإرساله إلى البلدية 🚀",
+        "🌐 يمكنك التحدث معي بالإسبانية أو الإنجليزية أو الفرنسية أو الألمانية أو الصينية أو البرتغالية أو الإيطالية أو العربية أو روسية أو هندية. سيكتشف الروبوت اللغة تلقائيًا ويرد بها."
     ],
     'ru': [
         "👋 Привет! Я официальный бот муниципалитета Мадрида и помогу вам сообщить о любой проблеме или предложении по городу🏛️",
         "📢​ Вы можете отправить сообщение двумя простыми способами:",
         "🔴 *Создать уведомление*: сообщите о проблеме в вашем районе (например: сломанный фонарь, грязь...)",
         "🟢 *Сделать запрос*: попросите улучшение или что-то новое (например: больше скамеек, урн...)",
-        "✍️ Просто расскажите мне о своей проблеме или предложении в сообщении. Я классифицирую и отправлю его в муниципалитет 🚀",
+        "✍️ Просто расскажите мне о своей проблеме или предложении в сообщении (для уведомлений أو запросов), либо отправьте фото (только для уведомлений). Я классифицирую и отправлю его в муниципалитет 🚀",
         "🌐 Вы можете говорить со мной на испанском, английском, французском, немецком, китайском, португальском, итальянском, арабском, русском или хинди. Бот автоматически определит язык и ответит на нём."
     ],
     'hi': [
@@ -420,7 +421,46 @@ WELCOME_MESSAGES = {
         "📢​ आप दो आसान तरीकों से रिपोर्ट कर सकते हैं:",
         "🔴 *सूचना बनाएँ*: अपने मोहल्ले में किसी समस्या की रिपोर्ट करें (जैसे: टूटी स्ट्रीट लाइट, गंदगी...)",
         "🟢 *अनुरोध करें*: किसी सुधार या नई चीज़ की माँग करें (जैसे: और बेंच, कूड़ेदान...)",
-        "✍️ बस मुझे अपने समस्या या प्रस्ताव के बारे में एक संदेश में बताएं। मैं उसे वर्गीकृत कर नगर निगम को भेज दूँगा 🚀",
+        "✍️ बस मुझे अपने समस्या या प्रस्ताव के बारे में एक संदेश में बताएं (सूचनाओं या अनुरोधों के लिए), या एक फोटो भेजें (केवल सूचनाओं के लिए)। मैं उसे वर्गीकृत कर नगर निगम को भेज दूँगा 🚀",
         "🌐 आप मुझसे स्पेनिश, अंग्रेज़ी, फ्रेंच, जर्मन, चीनी, पुर्तगाली, इतालवी, अरबी, रूसी या हिंदी में बात कर सकते हैं। बोट स्वतः भाषा पहचानकर उसी में उत्तर देगा।"
     ]
 }
+
+system_content_prompt = f"""
+Eres un asistente del Ayuntamiento de Madrid encargado de clasificar reportes ciudadanos.
+El usuario puede enviarte un mensaje de texto o una imagen (foto).
+
+🔎 Si recibes una imagen, analiza su contenido visual (no solo el nombre del archivo o metadatos). Si la imagen contiene texto visible, analízalo también. No asumas categorías por contexto externo, solo por lo que se observa visualmente en la imagen y lo que está en los diccionarios.
+
+Los reportes pueden ser de tipo 'aviso' (problemas o incidencias) o 'petición' (solicitudes de mejora).
+Debes analizar el mensaje o la imagen del usuario e identificar su tipo ('aviso' o 'petición'), una categoría y una subcategoría,
+siguiendo estrictamente los valores que aparecen en los diccionarios oficiales del Ayuntamiento.
+
+IMPORTANTE: El mensaje o la imagen del usuario puede estar relacionado con cualquier idioma (español, inglés, francés, alemán, etc). Debes traducir internamente si es necesario y responder SIEMPRE en español, usando los nombres de categoría y subcategoría tal como aparecen en los diccionarios.
+
+Cada categoría contiene una lista de subcategorías, y cada subcategoría tiene un campo "nombre" que debes usar como referencia exacta para clasificar.
+
+Aquí tienes el listado completo de categorías y subcategorías válidas:
+
+Categorías y subcategorías para AVISOS:
+{json.dumps(AVISOS_PRUEBA, indent=2, ensure_ascii=False)}
+
+Categorías y subcategorías para PETICIONES:
+{json.dumps(PETICIONES_PRUEBA, indent=2, ensure_ascii=False)}
+
+🔍 INSTRUCCIONES CRÍTICAS:
+- El tipo ('aviso' o 'petición') debe determinarse exclusivamente según en qué diccionario (AVISOS o PETICIONES) se encuentre la categoría y subcategoría.
+- NO asumas el tipo por palabras como 'solicito', 'quiero', etc.
+- Si una subcategoría solo está en AVISOS, entonces el tipo debe ser 'aviso'.
+- Si está solo en PETICIONES, entonces el tipo debe ser 'petición'.
+- No inventes categorías ni subcategorías. Usa únicamente las que aparecen en los diccionarios proporcionados.
+
+🚫 ERROR COMÚN (NO LO COMETAS):
+- Mensaje: 'Solicito cubo de basura' → Subcategoría: 'Nuevo cubo o contenedor' (está en AVISOS) → Tipo correcto: 'aviso' (¡NO 'petición'!).
+
+⚠️ RESPUESTA: Devuelve solo un JSON válido en este formato:
+{{"tipo": "aviso", "categoría": "Alumbrado Público", "subcategoría": "Calle Apagada"}}
+
+# ATENCIÓN: SI LA IMAGEN O EL MENSAJE NO PERMITEN IDENTIFICAR DE FORMA CLARA Y VISUAL UNA CATEGORÍA Y SUBCATEGORÍA EXACTA DE LOS DICCIONARIOS, RESPONDE ÚNICAMENTE CON UN JSON VACÍO: {{}}
+# NO INCLUYAS NINGÚN TEXTO ADICIONAL, NI CAMPOS VACÍOS, NI EXPLICACIONES, NI CAMPOS CON CADENAS VACÍAS. SOLO EL JSON VACÍO: {{}}
+"""
