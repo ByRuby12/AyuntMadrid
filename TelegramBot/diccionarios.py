@@ -1,6 +1,6 @@
-# DICCIONARIOS DE AVISOS, PETICIONES, TEXTOS Y MAS
 import json
 
+# DICCIONARIOS DE AVISOS, PETICIONES, TEXTOS Y MAS
 AVISOS_PRUEBA = {
     "Alumbrado Público": [
         {"nombre": "Calle Apagada", "id": ["591b3a514e4ea844018b457c"]},
@@ -96,6 +96,7 @@ AVISOS_PRUEBA = {
     ]
 }
 
+# Diccionario de peticiones de mejora
 PETICIONES_PRUEBA = {
     "Áreas Infantiles, Áreas de Mayores y circuitos": [
         {"nombre": "Nueva Instalación", "id": ["591ed08b4e4ea839018b4568"]}
@@ -120,6 +121,7 @@ PETICIONES_PRUEBA = {
      ]
 }
 
+# Diccionario de textos del bot
 BOT_TEXTS = {
     'es': {
         'detected': "✅ He detectado un {tipo} en la categoría '{categoria}' y subcategoría '{subcategoria}'.",
@@ -343,6 +345,7 @@ BOT_TEXTS = {
     },
 }
 
+# Diccionario de mensajes de bienvenida
 WELCOME_MESSAGES = {
     'es': [
         "👋 ¡Hola! Soy el bot oficial del Ayuntamiento de Madrid y estoy aquí para ayudarte a comunicar cualquier incidencia o sugerencia sobre la ciudad🏛️",
@@ -426,6 +429,7 @@ WELCOME_MESSAGES = {
     ]
 }
 
+# Prompt del sistema para el modelo de IA
 system_content_prompt = f"""
 Eres un asistente del Ayuntamiento de Madrid encargado de clasificar reportes ciudadanos.
 El usuario puede enviarte un mensaje de texto o una imagen (foto).

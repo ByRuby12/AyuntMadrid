@@ -30,7 +30,7 @@ ESPERANDO_UBICACION, ESPERANDO_MEDIA = range(2)
 
 # ------------------------FUNCIONES----------------------------------
 
-# 1. Traduce un texto a español si es necesario
+# 1.Traduce un texto a español si es necesario
 async def traducir_a_espanol(texto, idioma_origen):
     if idioma_origen == 'es':
         return texto
@@ -52,7 +52,7 @@ async def traducir_a_espanol(texto, idioma_origen):
 
 # ------------------------PRIMERA OPCION-----------------------------
 
-# 1.1. Procesa el mensaje del usuario y pide ubicación si es válido
+# 1.1.Procesa el mensaje del usuario y pide ubicación si es válido
 async def manejar_mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     mensaje = update.message.text
@@ -170,7 +170,7 @@ async def manejar_mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return ESPERANDO_UBICACION
 
-# 1.2. Clasifica un mensaje de texto usando OpenAI
+# 1.2.Clasifica un mensaje de texto usando OpenAI
 async def analizar_mensaje_con_openai(mensaje_usuario: str):
     print(f"Analizando mensaje: {mensaje_usuario}")
 
@@ -226,7 +226,7 @@ async def analizar_mensaje_con_openai(mensaje_usuario: str):
 
 # ------------------------SEGUNDA OPCION-----------------------------
 
-# 1.1 Procesa la foto inicial enviada por el usuario
+# 1.1Procesa la foto inicial enviada por el usuario
 async def manejar_foto_inicial(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     idioma = 'es'  # Puedes mejorar esto detectando idioma por preferencia previa
@@ -303,7 +303,7 @@ async def manejar_foto_inicial(update: Update, context: ContextTypes.DEFAULT_TYP
     )
     return ESPERANDO_UBICACION
 
-# 1.2. Clasifica una imagen y genera una descripción visual usando OpenAI
+# 1.2.Clasifica una imagen y genera una descripción visual usando OpenAI
 async def analizar_imagen_con_openai(file_path: str):
     """
     Envía una imagen a OpenAI Vision y clasifica según los diccionarios de avisos/peticiones.
@@ -340,7 +340,7 @@ async def analizar_imagen_con_openai(file_path: str):
 
 # ------------------------PASOS FINALES------------------------------
 
-# 2. Nuevo handler para recibir la descripción tras foto no detectada
+# 2.Nuevo handler para recibir la descripción tras foto no detectada
 async def recibir_descripcion_foto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Si el usuario envía una foto, volver a intentar clasificarla
     if update.message.photo:
@@ -415,7 +415,7 @@ async def recibir_descripcion_foto(update: Update, context: ContextTypes.DEFAULT
     context.user_data.pop("esperando_descripcion_foto", None)
     return await manejar_mensaje(update, context)
 
-# 3. Procesa la ubicación enviada por el usuario y pide foto/video si procede
+# 3.Procesa la ubicación enviada por el usuario y pide foto/video si procede
 async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ubicacion: Location = update.message.location
     datos = context.user_data.get("reporte", {})
@@ -502,7 +502,7 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return ESPERANDO_MEDIA
 
-# 4. Procesa la foto o video enviado por el usuario
+# 4.Procesa la foto o video enviado por el usuario
 async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     datos = context.user_data.get("reporte", {})
     idioma = context.user_data.get("idioma", "es")
@@ -537,7 +537,7 @@ async def recibir_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     descripcion_original = datos.get("descripcion", "")
     return await enviar_reporte_final(datos, textos, descripcion_es, descripcion_original, context, update, tipo_media=tipo_media, archivo=archivo)
 
-# 5. Envía el reporte a la API municipal y al grupo de Telegram
+# 5.Envía el reporte a la API municipal y al grupo de Telegram
 async def enviar_reporte_final(datos, textos, descripcion_es, descripcion_original, context, update, tipo_media=None, archivo=None):
 
     try:
@@ -717,7 +717,7 @@ async def enviar_reporte_final(datos, textos, descripcion_es, descripcion_origin
 
 # ------------------------RECORDATORIO USUARIO PASOS-----------------
 
-# Recuerda al usuario que debe enviar ubicación
+# 6.Recuerda al usuario que debe enviar ubicación
 async def recordar_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     idioma = context.user_data.get("idioma", "es")
     textos = BOT_TEXTS.get(idioma, BOT_TEXTS['es'])
@@ -730,7 +730,7 @@ async def recordar_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
     return ESPERANDO_UBICACION
 
-# Recuerda al usuario que debe enviar foto/video o puede omitir
+# 7.Recuerda al usuario que debe enviar foto/video o puede omitir
 async def recordar_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     idioma = context.user_data.get("idioma", "es")
     textos = BOT_TEXTS.get(idioma, BOT_TEXTS['es'])
