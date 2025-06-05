@@ -96,7 +96,7 @@ AVISOS_PRUEBA = {
     ]
 }
 
-# Diccionario de peticiones de mejora
+# Diccionario de peticiones de mejora o nuevas instalaciones
 PETICIONES_PRUEBA = {
     "Áreas Infantiles, Áreas de Mayores y circuitos": [
         {"nombre": "Nueva Instalación", "id": ["591ed08b4e4ea839018b4568"]}
@@ -121,7 +121,7 @@ PETICIONES_PRUEBA = {
      ]
 }
 
-# Diccionario de textos del bot
+# Diccionario de textos del bot y mensajes de seguimiento 
 BOT_TEXTS = {
     'es': {
         'detected': "✅ He detectado un {tipo} en la categoría '{categoria}' y subcategoría '{subcategoria}'.",
@@ -345,7 +345,7 @@ BOT_TEXTS = {
     },
 }
 
-# Diccionario de mensajes de bienvenida
+# Diccionario de mensajes de bienvenida en varios idiomas 
 WELCOME_MESSAGES = {
     'es': [
         "👋 ¡Hola! Soy el bot oficial del Ayuntamiento de Madrid y estoy aquí para ayudarte a comunicar cualquier incidencia o sugerencia sobre la ciudad🏛️",
@@ -429,7 +429,7 @@ WELCOME_MESSAGES = {
     ]
 }
 
-# Prompt del sistema para el modelo de IA
+# Prompt del sistema 
 system_content_prompt = f"""
 Eres un asistente del Ayuntamiento de Madrid encargado de clasificar reportes ciudadanos.
 El usuario puede enviarte un mensaje de texto o una imagen (foto).
