@@ -348,84 +348,44 @@ BOT_TEXTS = {
 # Diccionario de mensajes de bienvenida en varios idiomas 
 WELCOME_MESSAGES = {
     'es': [
-        "👋 ¡Hola! Soy el bot oficial del Ayuntamiento de Madrid y estoy aquí para ayudarte a comunicar cualquier incidencia o sugerencia sobre la ciudad🏛️",
-        "📢​ Puedes realizar un reporte de dos formas sencillas:",
-        "🔴 *Crear un aviso*: informa de un problema en tu barrio (ej: farola rota, suciedad...)",
-        "🟢 *Realizar una petición*: solicita una mejora o algo nuevo (ej: más bancos, papeleras...)",
-        "✍️ Solo tienes que contarme tu problema o propuesta en un mensaje (para avisos o peticiones), o enviar una foto (solo para avisos). Yo lo clasifico y lo envío al Ayuntamiento 🚀",
-        "🌐 Puedes hablarme en español, inglés, francés, alemán, chino o portugués. El bot detecta automáticamente el idioma y te responderá en ese idioma."
+        "👋 Hola, buenas {usuario}. No hemos podido reconocer el contenido del mensaje o la foto. 😕",
+        "✍️ Por favor, describe brevemente el problema o envía una foto para poder clasificarlo:"
     ],
     'en': [
-        "👋 Hi! I am the official bot of Madrid City Council. I'm here to help you report any issue or suggestion about the city🏛️",
-        "📢​ You can make a report in two simple ways:",
-        "🔴 *Create a notice*: report a problem in your neighborhood (e.g., broken streetlight, dirt...)",
-        "🟢 *Make a request*: ask for an improvement or something new (e.g., more benches, bins...)",
-        "✍️ Just tell me your problem or proposal in a message (for notices or requests), or send a photo (only for notices). I will classify it and send it to the City Council 🚀",
-        "🌐 You can talk to me in Spanish, English, French, German, Chinese or Portuguese. The bot will automatically detect your language and reply in that language."
+        "👋 Hello {usuario}, we couldn't recognize the content of your message or photo. 😕",
+        "✍️ Please briefly describe the problem or send a photo so we can classify it."
     ],
     'fr': [
-        "👋 Bonjour! Je suis le bot officiel de la Mairie de Madrid et je suis là pour vous aider à signaler tout incident ou suggestion concernant la ville🏛️",
-        "📢​ Vous pouvez faire un signalement de deux manières simples:",
-        "🔴 *Créer un avis*: signalez un problème dans votre quartier (ex: lampadaire cassé, saleté...)",
-        "🟢 *Faire une demande*: demandez une amélioration ou quelque chose de nouveau (ex: plus de bancs, poubelles...)",
-        "✍️ Il vous suffit de me raconter votre problème ou proposition dans un message (pour avis ou demandes), ou d'envoyer une photo (seulement pour avis). Je le classerai et l'enverrai à la Mairie 🚀",
-        "🌐 Vous pouvez me parler en espagnol, anglais, français, allemand, chinois ou portugais. Le bot détectera automatiquement la langue et vous répondra dans cette langue."
+        "👋 Bonjour {usuario}, nous n'avons pas pu reconnaître le contenu du message ou de la photo. 😕",
+        "✍️ Veuillez décrire brièvement le problème ou envoyer une photo pour que nous puissions le classer."
     ],
     'de': [
-        "👋 Hallo! Ich bin der offizielle Bot der Stadt Madrid und helfe dir, Vorfälle oder Vorschläge zur Stadt zu melden🏛️",
-        "📢​ Du kannst auf zwei einfache Arten einen Bericht erstellen:",
-        "🔴 *Hinweis erstellen*: Melde ein Problem in deinem Viertel (z.B. kaputte Laterne, Schmutz...)",
-        "🟢 *Anfrage stellen*: Fordere eine Verbesserung oder etwas Neues an (z.B. mehr Bänke, Mülleimer...)",
-        "✍️ Erzähl mir einfach dein Problem oder deinen Vorschlag in einer Nachricht (für Hinweise oder Anfragen), oder sende ein Foto (nur für Hinweise). Ich klassifiziere es und sende es an die Stadtverwaltung 🚀",
-        "🌐 Du kannst mit mir auf Spanisch, Englisch, Französisch, Deutsch, Chinesisch oder Portugiesisch sprechen. Der Bot erkennt deine Sprache automatisch und antwortet in dieser Sprache."
+        "👋 Hallo {usuario}, wir konnten den Inhalt der Nachricht oder des Fotos nicht erkennen. 😕",
+        "✍️ Bitte beschreibe das Problem kurz oder sende ein Foto, damit wir es klassifizieren können."
     ],
     'zh': [
-        "👋 你好！我是马德里市政府的官方机器人，我可以帮助你报告城市中的任何问题或建议🏛️",
-        "📢​ 你可以通过两种简单的方式进行报告：",
-        "🔴 *创建通知*：报告你所在社区的问题（例如：路灯坏了、脏乱等）",
-        "🟢 *提出请求*：请求改进或新增设施（例如：更多长椅、垃圾桶等）",
-        "✍️ 只需通过消息告诉我你的问题或建议（用于通知或请求），或发送一张照片（仅用于通知）。我会对其进行分类并发送给市政府 🚀",
-        "🌐 你可以用西班牙语、英语、法语、德语、中文或葡萄牙语与我交流。机器人会自动检测你的语言并用该语言回复你。"
+        "👋 您好，{usuario}。我们无法识别您的消息或照片内容。😕",
+        "✍️ 请简要描述问题或发送一张照片，以便我们进行分类。"
     ],
     'pt': [
-        "👋 Olá! Sou o bot oficial da Câmara Municipal de Madrid e estou aqui para te ajudar a comunicar qualquer incidente ou sugestão sobre a cidade🏛️",
-        "📢​ Você pode fazer um relatório de duas formas simples:",
-        "🔴 *Criar um aviso*: informe um problema no seu bairro (ex: poste quebrado, sujeira...)",
-        "🟢 *Fazer um pedido*: solicite uma melhoria ou algo novo (ex: mais bancos, lixeiras...)",
-        "✍️ Basta me contar seu problema ou proposta em uma mensagem (para avisos ou pedidos), ou enviar uma foto (apenas para avisos). Eu classifico e envio para a Câmara Municipal 🚀",
-        "🌐 Você pode falar comigo em espanhol, inglês, francês, alemão, chinês ou português. O bot detecta automaticamente o idioma e responderá nesse idioma."
+        "👋 Olá {usuario}, não conseguimos reconhecer o conteúdo da mensagem или foto. 😕",
+        "✍️ Por favor, descreva brevemente o problema ou envie uma foto para que possamos classificá-lo."
     ],
     'it': [
-        "👋 Ciao! Sono il bot ufficiale del Comune di Madrid e sono qui per aiutarti a segnalare qualsiasi problema o suggerimento sulla città🏛️",
-        "📢​ Puoi fare una segnalazione in due semplici modi:",
-        "🔴 *Crea una segnalazione*: segnala un problema nel tuo quartiere (es: lampione rotto, sporcizia...)",
-        "🟢 *Fai una richiesta*: chiedi un miglioramento o qualcosa di nuovo (es: più panchine, cestini...)",
-        "✍️ Raccontami semplicemente il tuo problema o proposta in un messaggio (per segnalazioni o richieste), oppure invia una foto (solo per segnalazioni). Lo classificherò e lo invierò al Comune 🚀",
-        "🌐 Puoi parlarmi in spagnolo, inglese, francese, tedesco, cinese, portoghese, italiano, arabo, russo o हिंदी. Il bot rileverà automaticamente la lingua e ti risponderà in quella lingua."
+        "👋 Ciao {usuario}, non siamo riusciti a riconoscere il contenuto del messaggio o della foto. 😕",
+        "✍️ Per favore, descrivi brevemente il problema o invia una foto per poterlo classificare."
     ],
     'ar': [
-        "👋 مرحبًا! أنا الروبوت الرسمي لبلدية مدريد، هنا لمساعدتك في الإبلاغ عن أي مشكلة أو اقتراح حول المدينة🏛️",
-        "📢​ يمكنك تقديم تقرير بطريقتين بسيطتين:",
-        "🔴 *إنشاء إشعار*: أبلغ عن مشكلة في حيّك (مثال: مصباح شارع مكسور، قذارة...)",
-        "🟢 *تقديم طلب*: اطلب تحسينًا أو شيئًا جديدًا (مثال: المزيد من المقاعد، سلال المهملات...)",
-        "✍️ فقط أخبرني بمشكلتك أو اقتراحك في رسالة (للتنبيهات أو الطلبات)، أو أرسل صورة (فقط للتنبيهات). سأقوم بتصنيفه وإرساله إلى البلدية 🚀",
-        "🌐 يمكنك التحدث معي بالإسبانية أو الإنجليزية أو الفرنسية أو الألمانية أو الصينية أو البرتغالية أو الإيطالية أو العربية أو روسية أو هندية. سيكتشف الروبوت اللغة تلقائيًا ويرد بها."
+        "👋 مرحبًا {usuario}، لم نتمكن من التعرف على محتوى الرسالة أو الصورة. 😕",
+        "✍️ يرجى وصف المشكلة بإيجاز أو إرسال صورة حتى نتمكن من تصنيفها."
     ],
     'ru': [
-        "👋 Привет! Я официальный бот муниципалитета Мадрида и помогу вам сообщить о любой проблеме или предложении по городу🏛️",
-        "📢​ Вы можете отправить сообщение двумя простыми способами:",
-        "🔴 *Создать уведомление*: сообщите о проблеме в вашем районе (например: сломанный фонарь, грязь...)",
-        "🟢 *Сделать запрос*: попросите улучшение или что-то новое (например: больше скамеек, урн...)",
-        "✍️ Просто расскажите мне о своей проблеме или предложении в сообщении (для уведомлений أو запросов), либо отправьте фото (только для уведомлений). Я классифицирую и отправлю его в муниципалитет 🚀",
-        "🌐 Вы можете говорить со мной на испанском, английском, французском, немецком, китайском, португальском, итальянском, арабском, русском или хинди. Бот автоматически определит язык и ответит на нём."
+        "👋 Здравствуйте, {usuario}. Мы не смогли распознать содержимое сообщения или фото. 😕",
+        "✍️ Пожалуйста, кратко опишите проблему или отправьте фото для классификации."
     ],
     'hi': [
-        "👋 नमस्ते! मैं मैड्रिड नगर निगम का आधिकारिक बोट हूँ और शहर से संबंधित किसी भी समस्या या सुझाव को साझा करने में आपकी मदद करने के लिए यहाँ हूँ🏛️",
-        "📢​ आप दो आसान तरीकों से रिपोर्ट कर सकते हैं:",
-        "🔴 *सूचना बनाएँ*: अपने मोहल्ले में किसी समस्या की रिपोर्ट करें (जैसे: टूटी स्ट्रीट लाइट, गंदगी...)",
-        "🟢 *अनुरोध करें*: किसी सुधार या नई चीज़ की माँग करें (जैसे: और बेंच, कूड़ेदान...)",
-        "✍️ बस मुझे अपने समस्या या प्रस्ताव के बारे में एक संदेश में बताएं (सूचनाओं या अनुरोधों के लिए), या एक फोटो भेजें (केवल सूचनाओं के लिए)। मैं उसे वर्गीकृत कर नगर निगम को भेज दूँगा 🚀",
-        "🌐 आप मुझसे स्पेनिश, अंग्रेज़ी, फ्रेंच, जर्मन, चीनी, पुर्तगाली, इतालवी, अरबी, रूसी या हिंदी में बात कर सकते हैं। बोट स्वतः भाषा पहचानकर उसी में उत्तर देगा।"
+        "👋 नमस्ते {usuario}, हम आपके संदेश या फोटो की सामग्री को पहचान नहीं सके। 😕",
+        "✍️ कृपया समस्या का संक्षिप्त विवरण दें या एक फोटो भेजें ताकि हम उसे वर्गीकृत कर सकें।"
     ]
 }
 
@@ -467,4 +427,6 @@ Categorías y subcategorías para PETICIONES:
 
 # ATENCIÓN: SI LA IMAGEN O EL MENSAJE NO PERMITEN IDENTIFICAR DE FORMA CLARA Y VISUAL UNA CATEGORÍA Y SUBCATEGORÍA EXACTA DE LOS DICCIONARIOS, RESPONDE ÚNICAMENTE CON UN JSON VACÍO: {{}}
 # NO INCLUYAS NINGÚN TEXTO ADICIONAL, NI CAMPOS VACÍOS, NI EXPLICACIONES, NI CAMPOS CON CADENAS VACÍAS. SOLO EL JSON VACÍO: {{}}
+
+# Además, detecta el idioma principal del mensaje del usuario y añade un campo 'idioma' (código ISO 639-1, por ejemplo 'es', 'en', 'fr', etc.) al JSON de respuesta. Ejemplo de respuesta: {{'tipo': 'aviso', 'categoría': 'Limpieza', 'subcategoría': 'Basura', 'idioma': 'es'}}
 """

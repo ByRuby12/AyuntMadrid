@@ -1,5 +1,5 @@
 # -----------------------IMPORT LIBRERIAS---------------------------
-from diccionarios import AVISOS_PRUEBA, PETICIONES_PRUEBA, WELCOME_MESSAGES, BOT_TEXTS, system_content_prompt
+from diccionarios import AVISOS_PRUEBA, PETICIONES_PRUEBA, BOT_TEXTS, system_content_prompt, WELCOME_MESSAGES
 from claves import OPENAI_API_KEY, CURAIME_BOT_KEY, TELEGRAM_GROUP_ID, AUTHORIZATION_TOKEN
 from datetime import datetime
 from telegram import (Update, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, Location, InputFile)
@@ -64,7 +64,7 @@ async def manejar_mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
         'it': 'it', 'ar': 'ar', 'ru': 'ru', 'hi': 'hi'
     }
 
-    # Mejorar la detección de idioma: priorizar saludos sobre langdetect
+    # Mejorar la detección de idioma: priorizar español y saludos sobre langdetect
     saludos = {
         'en': ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening'],
         'es': ['hola', 'buenas', 'buenos días', 'buenas tardes', 'buenas noches'],
@@ -77,43 +77,53 @@ async def manejar_mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
         'ru': ['привет', 'здравствуйте', 'доброе утро', 'добрый день', 'добрый вечер'],
         'hi': ['नमस्ते', 'हैलो', 'सुप्रभात', 'शुभ संध्या', 'शुभ रात्रि']
     }
-    
+    # --- Heurística reforzada para priorizar español ---
+    def es_probablemente_espanol(texto):
+        # Palabras y caracteres muy frecuentes en español
+        palabras_es = [
+            'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 'de', 'que', 'y', 'en', 'a', 'es', 'por', 'con', 'para', 'como', 'más', 'pero', 'sus', 'le', 'ya', 'o', 'sí', 'porque', 'esta', 'entre', 'cuando', 'muy', 'sin', 'sobre', 'también', 'me', 'hasta', 'hay', 'donde', 'quien', 'desde', 'todo', 'nos', 'durante', 'todos', 'uno', 'les', 'ni', 'contra', 'otros', 'ese', 'eso', 'ante', 'ellos', 'e', 'esto', 'mí', 'antes', 'algunos', 'qué', 'unos', 'yo', 'otro', 'otras', 'otra', 'él', 'tanto', 'esa', 'estos', 'mucho', 'quienes', 'nada', 'muchos', 'cual', 'poco', 'ella', 'estar', 'estas', 'algunas', 'algo', 'nosotros', 'mi', 'mis', 'tú', 'te', 'ti', 'tu', 'tus', 'ellas', 'nosotras', 'vosotros', 'vosotras', 'os', 'mío', 'mía', 'míos', 'mías', 'tuyo', 'tuya', 'tuyos', 'tuyas', 'suyo', 'suya', 'suyos', 'suyas', 'nuestro', 'nuestra', 'nuestros', 'nuestras', 'vuestro', 'vuestra', 'vuestros', 'vuestras', 'esos', 'esas', 'estoy', 'estás', 'está', 'estamos', 'estáis', 'están', 'esté', 'estés', 'estemos', 'estéis', 'estén', 'estaré', 'estarás', 'estará', 'estaremos', 'estaréis', 'estarán', 'estaría', 'estarías', 'estaríamos', 'estaríais', 'estarían', 'estaba', 'estabas', 'estábamos', 'estabais', 'estaban', 'estuve', 'estuviste', 'estuvo', 'estuvimos', 'estuvisteis', 'estuvieron', 'estuviera', 'estuvieras', 'estuviéramos', 'estuvierais', 'estuvieran', 'estuviese', 'estuvieses', 'estuviésemos', 'estuvieseis', 'estuviesen', 'estando', 'estado', 'estada', 'estados', 'estadas', 'estad']
+        # Caracteres típicos
+        if any(c in texto for c in 'ñáéíóúü¡¿'):
+            return True
+        # Palabras frecuentes
+        palabras = texto.lower().split()
+        coincidencias = sum(1 for p in palabras if p in palabras_es)
+        if coincidencias >= 2:
+            return True
+        return False
+
+    # --- Detección de idioma usando IA (OpenAI) como principal ---
     mensaje_limpio = mensaje.strip().lower()
     idioma = None
-    # 1. Buscar primero si es un saludo conocido
-    for lang, palabras in saludos.items():
-        if any(palabra in mensaje_limpio for palabra in palabras):
-            idioma = lang
-            print(f"Idioma forzado por palabra clave: {idioma}")
-            break
-    # 2. Si no es saludo, usar langdetect si está en la lista
+    resultado = await analizar_mensaje_con_openai(mensaje)
+    if resultado and "idioma" in resultado:
+        idioma = resultado["idioma"].lower()
+        print(f"Idioma detectado por IA: {idioma}")
+    # Si la IA no lo detecta, usar heurística de saludos y español
     if not idioma:
-        try:
-            detected_lang = detect(mensaje)
-            print(f"Idioma detectado: {detected_lang}")
-            idioma = idiomas_map.get(detected_lang)
-        except Exception as e:
-            print(f"No se pudo detectar el idioma, usando español por defecto. Error: {e}")
-            idioma = 'es'
-    # 3. Si sigue sin idioma, poner español por defecto
+        for lang, palabras in saludos.items():
+            if any(palabra in mensaje_limpio for palabra in palabras):
+                idioma = lang
+                print(f"Idioma forzado por palabra clave: {idioma}")
+                break
+    if not idioma and es_probablemente_espanol(mensaje_limpio):
+        idioma = 'es'
+        print("Idioma forzado por heurística de español.")
     if not idioma:
         idioma = 'es'
     context.user_data["idioma"] = idioma
 
-    resultado = await analizar_mensaje_con_openai(mensaje)
-
+    # Si el resultado no tiene tipo/categoría/subcategoría, flujo de error
     if not resultado or "tipo" not in resultado or "categoría" not in resultado or "subcategoría" not in resultado:
-        print("Mensaje no clasificado correctamente. Respondiendo con mensajes fluidos.")
-        print(f"╚―――――――――――――――――――――――――――――――――――――")
-        # Mostrar solo los mensajes de bienvenida sin la línea de cambio de idioma
-        for texto in WELCOME_MESSAGES[idioma]:
-            if "idioma del bot" in texto:
-                continue  # Omitir la línea de cambio de idioma
+        print("Mensaje no clasificado correctamente. Pidiendo descripción o foto al usuario.")
+        context.user_data["esperando_descripcion_foto"] = True
+        usuario = update.message.from_user.first_name or update.message.from_user.full_name or "usuario"
+        mensajes = WELCOME_MESSAGES.get(idioma, WELCOME_MESSAGES['es'])
+        for texto in mensajes:
             await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
             await asyncio.sleep(3)
-            await update.message.reply_text(texto, parse_mode="Markdown")
-        return ConversationHandler.END
-
+            await update.message.reply_text(texto.format(usuario=usuario), parse_mode="Markdown")
+        return 1001  # Estado especial para descripción tras mensaje no clasificado
     tipo = resultado["tipo"]
     categoria = resultado["categoría"]
     subcategoria = resultado["subcategoría"]
@@ -250,10 +260,12 @@ async def manejar_foto_inicial(update: Update, context: ContextTypes.DEFAULT_TYP
         not resultado.get("tipo") or not resultado.get("categoría") or not resultado.get("subcategoría")
     ):
         print("Imagen no clasificada correctamente. Pidiendo descripción al usuario.")
-        await update.message.reply_text(
-            "No he podido reconocer el contenido de la foto. Por favor, describe brevemente el problema para poder clasificarlo:",
-            parse_mode="Markdown"
-        )
+        usuario = update.message.from_user.first_name or update.message.from_user.full_name or "usuario"
+        mensajes = WELCOME_MESSAGES.get(idioma, WELCOME_MESSAGES['es'])
+        for texto in mensajes:
+            await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+            await asyncio.sleep(3)
+            await update.message.reply_text(texto.format(usuario=usuario), parse_mode="Markdown")
         context.user_data["esperando_descripcion_foto"] = True
         return 1001  # Estado especial para descripción tras foto
     tipo = resultado["tipo"]
@@ -358,10 +370,12 @@ async def recibir_descripcion_foto(update: Update, context: ContextTypes.DEFAULT
             pass
         if not resultado or "tipo" not in resultado or "categoría" not in resultado or "subcategoría" not in resultado:
             print("Imagen no clasificada correctamente. Volver a pedir descripción o nueva foto.")
-            await update.message.reply_text(
-                "No he podido reconocer el contenido de la foto. Puedes volver a intentarlo enviando otra foto o describiendo el problema:",
-                parse_mode="Markdown"
-            )
+            usuario = update.message.from_user.first_name or update.message.from_user.full_name or "usuario"
+            mensajes = WELCOME_MESSAGES.get(idioma, WELCOME_MESSAGES['es'])
+            for texto in mensajes:
+                await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+                await asyncio.sleep(3)
+                await update.message.reply_text(texto.format(usuario=usuario), parse_mode="Markdown")
             return 1001
         tipo = resultado["tipo"]
         categoria = resultado["categoría"]
@@ -464,7 +478,7 @@ async def recibir_ubicacion(update: Update, context: ContextTypes.DEFAULT_TYPE):
             and "Coordinates do not have a valid zones" in response.text
         ):
             await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-            await asyncio.sleep(2)
+            await asyncio.sleep(3)
             await update.message.reply_text(
                 textos['out_of_madrid'],
                 parse_mode="Markdown",
@@ -554,7 +568,7 @@ async def enviar_reporte_final(datos, textos, descripcion_es, descripcion_origin
         if tipo_media == "foto":
             print("Enviando mensaje al grupo con multimedia (foto inicial)")
         elif tipo_media == "video":
-            print("Enviando mensaje al grupo con multimedia (video)")
+            print("Enviando mensaje al grupo with multimedia (video)")
         else:
             print("Enviando mensaje al grupo sin multimedia")
         print(f"╚―――――――――――――――――――――――――――――――――――――")
