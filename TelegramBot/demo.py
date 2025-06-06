@@ -2,9 +2,8 @@
 from diccionarios import AVISOS_PRUEBA, PETICIONES_PRUEBA, BOT_TEXTS, system_content_prompt, WELCOME_MESSAGES
 from claves import OPENAI_API_KEY, CURAIME_BOT_KEY, TELEGRAM_GROUP_ID, AUTHORIZATION_TOKEN
 from datetime import datetime
-from telegram import (Update, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, Location, InputFile)
+from telegram import (Update, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, Location)
 from telegram.ext import (ApplicationBuilder, MessageHandler, filters, ContextTypes, ConversationHandler)
-from langdetect import detect
 
 import nest_asyncio
 import openai
@@ -59,12 +58,7 @@ async def manejar_mensaje(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(f"╔―――――――――――――――――――――――――――――――――――――")
     print(f"Mensaje recibido de {user_id}: {mensaje}")
 
-    idiomas_map = {
-        'es': 'es', 'en': 'en', 'fr': 'fr', 'de': 'de', 'zh': 'zh', 'pt': 'pt',
-        'it': 'it', 'ar': 'ar', 'ru': 'ru', 'hi': 'hi'
-    }
-
-    # Mejorar la detección de idioma: priorizar español y saludos sobre langdetect
+    # Mejorar la detección de idioma: priorizar español y saludos sobre 
     saludos = {
         'en': ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening'],
         'es': ['hola', 'buenas', 'buenos días', 'buenas tardes', 'buenas noches'],
